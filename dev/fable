@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# The fable CLI, talking to the sandbox daemon:  dev/fable get audio | dev/fable watch | dev/fable toggle launcher
+source "$(dirname "$0")/env.sh"
+exec "$FABLE_BIN" "$@"

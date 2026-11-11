@@ -1,0 +1,6 @@
+/daemon/target/
+/result
+*.qmlc
+*.qsb
+.sandbox/
+__pycache__/

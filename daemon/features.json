@@ -1,0 +1,14 @@
+{
+  "wallpaper": "Setting and browsing wallpapers.",
+  "palette": "Colours taken from the wallpaper. Off, or without `wallpaper`, the built-in palette is used.",
+  "notifications": "The notification server. Off leaves notifications to another one, such as mako.",
+  "clipboard": "Clipboard history.",
+  "capture": "Screenshots and screen recording.",
+  "lock": "The lock screen. Off leaves locking to another locker, such as hyprlock.",
+  "focus": "Screen-time statistics.",
+  "weather": "The weather: in the bar, in the calendar and on the lock screen.",
+  "updates": "Checking the inputs of the system flake for updates.",
+  "movies": "The film and series catalogue.",
+  "assistant": "The assistant.",
+  "quick": "The quick panel at the screen edges: drawing on the screen, system usage, timers."
+}

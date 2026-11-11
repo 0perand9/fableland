@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# Run the shell in a window on your desktop: a nested compositor with the bar,
+# the popups and the overlays inside, fed by the sandbox daemon. That daemon is
+# read-only, so the window shows your real session but changes nothing in it.
+# Closing the window ends everything.
+#
+#   dev/window [-s WxH] [what]
+#
+#   what       a popup to open at start, with optional argument: network:bt
+#              (or an overlay preview: lock, capture, quick)
+#   -s WxH     the size the window asks for (default 1920x1080)
+#
+# Click the bar to open popups, or ask from another terminal:
+#   dev/fable toggle launcher
+# The shell reloads when a file under shell/ changes; its log goes to this terminal.
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+
+size=1920x1080
+while getopts "s:h" opt; do
+    case $opt in
+        s) size=$OPTARG ;;
+        *) sed -n '2,15p' "$0"; exit 2 ;;
+    esac
+done
+shift $((OPTIND - 1))
+[ -n "${WAYLAND_DISPLAY:-}" ] || { echo "there is no Wayland session to open a window in" >&2; exit 1; }
+sway=$(find_sway)
+swaymsg="$(dirname "$sway")/swaymsg"
+quickshell=$(find_quickshell)
+build_shaders
+
+# A daemon started for the window ends with it.
+started=""
+if [ "$("$ROOT/dev/daemon" status)" = "not running" ]; then
+    "$ROOT/dev/daemon" start
+    started=1
+fi
+
+work=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/fable-window.XXXXXX")
+compositor=""
+cleanup() {
+    trap '' INT HUP TERM
+    # Killed outright: once its window is gone sway can sit waiting on the
+    # compositor around it, where no polite request reaches it. The shell
+    # inside loses its display and goes too.
+    [ -z "$compositor" ] || kill -KILL "$compositor" 2>/dev/null || true
+    rm -rf "$work"
+    [ -z "$started" ] || "$ROOT/dev/daemon" stop
+}
+trap cleanup EXIT
+# Ctrl+C and a closed terminal end the script the ordinary way, cleanup included.
+trap 'exit 130' INT HUP TERM
+
+cat >"$work/sway.conf" <<CONF
+output * resolution $size bg #39424e solid_color
+default_border none
+xwayland disable
+exec "$quickshell" -p "$FABLE_SHELL"
+CONF
+
+export SWAYSOCK="$work/sway.sock"
+export QT_QPA_PLATFORM=wayland QT_FFMPEG_DECODING_HW_DEVICE_TYPES= FABLE_DEV_OPEN="${1:-}"
+# sway draws the pointer itself (WLR_NO_HARDWARE_CURSORS): by default it hands
+# the pointer to the compositor around it, and Hyprland does not show that one.
+# (--unsupported-gpu: without it sway puts a warning bar across the top on NVIDIA.)
+# (setpriv: however this script ends, sway does not outlive it.)
+WLR_BACKENDS=wayland WLR_NO_HARDWARE_CURSORS=1 \
+    setpriv --pdeathsig KILL "$sway" --unsupported-gpu -c "$work/sway.conf" &
+compositor=$!
+for _ in $(seq 100); do [ -S "$SWAYSOCK" ] && break; sleep 0.1; done
+
+# sway outlives its window. Its output is that window: once it reports none,
+# the window was closed. It is asked after every output event — and every so
+# often besides, because a sway that hangs says nothing at all.
+exec {events}< <("$swaymsg" -m -t subscribe '["output"]' 2>/dev/null)
+while true; do
+    # (read fails with more than 128 when it merely timed out.)
+    read -r -t 10 -u "$events" _ || [ $? -gt 128 ] || break
+    outputs=$("$swaymsg" -t get_outputs -r 2>/dev/null) || true
+    [ -n "$outputs" ] || { echo "the window's compositor stopped answering; closing it" >&2; break; }
+    grep -q '"name"' <<<"$outputs" || break
+done

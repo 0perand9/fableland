@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# Render the shell in a throwaway headless compositor, optionally drive it with
+# pointer and keyboard actions, and take a screenshot. Nothing appears on your
+# real desktop.
+#
+#   dev/shot [options] [what] [-- action...]
+#
+#   what           a popup to open at start, with optional argument: network:bt
+#                  (or an overlay preview: lock, capture, quick); empty = just the bar
+#   -o FILE        where to save the PNG (default .sandbox/shots/<what or "bar">.png)
+#   -s WxH         screen size (default 1920x1080)
+#   -w SECONDS     time to let the shell settle before acting/shooting (default 2.5)
+#   -c X,Y,W,H     crop the final screenshot to this rectangle
+#   -e VAR=VALUE   extra environment for the shell (repeatable)
+#
+#   actions, run in order (coordinates are screen pixels):
+#     move X Y · click X Y · rclick X Y · mclick X Y · drag X1 Y1 X2 Y2
+#     hold X Y SECONDS (press and keep the left button down)
+#     scroll N (wheel notches at the pointer, negative = up)
+#     type TEXT · key NAME (Escape, Return, Tab, Down, ctrl+a, ...)
+#     wait SECONDS · shot FILE (an extra screenshot along the way)
+#
+#   dev/shot volume -- click 1687 237 wait 0.5
+#
+# Needs the sandbox daemon (dev/daemon start). Warnings and errors the shell
+# logged are printed at the end.
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+
+size=1920x1080 wait=2.5 out="" crop="" extra=()
+while getopts "o:s:w:c:e:h" opt; do
+    case $opt in
+        o) out=$OPTARG ;;
+        s) size=$OPTARG ;;
+        w) wait=$OPTARG ;;
+        c) crop=$OPTARG ;;
+        e) extra+=("$OPTARG") ;;
+        *) sed -n '2,27p' "$0"; exit 2 ;;
+    esac
+done
+shift $((OPTIND - 1))
+# The first word is what to open — unless it already is an action (getopts swallows the "--").
+target=""
+case "${1:-}" in
+    "" | -- | move | click | rclick | mclick | hold | drag | scroll | type | key | wait | shot) ;;
+    *) target=$1; shift ;;
+esac
+[ "${1:-}" = "--" ] && shift
+if [ -z "$out" ]; then
+    mkdir -p "$ROOT/.sandbox/shots"
+    name=${target%%:*}
+    out="$ROOT/.sandbox/shots/${name:-bar}.png"
+fi
+[ -S "$FABLE_SOCK" ] || { echo "the sandbox daemon is not running: dev/daemon start" >&2; exit 1; }
+build_shaders
+
+sway=$(find_sway)
+quickshell=$(find_quickshell)
+
+work=$(mktemp -d "${TMPDIR:-/tmp}/fable-shot.XXXXXX")
+pids=()
+cleanup() {
+    for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done
+    wait 2>/dev/null || true
+    rm -rf "$work"
+}
+trap cleanup EXIT
+
+cat >"$work/sway.conf" <<CONF
+output HEADLESS-1 resolution $size position 0,0 bg #39424e solid_color
+default_border none
+xwayland disable
+exec sh -c 'echo \$WAYLAND_DISPLAY > $work/display'
+CONF
+
+# Headless only: without this sway would open a window inside the running session.
+# (--unsupported-gpu: without it sway puts a warning bar across the top on NVIDIA.)
+env -u WAYLAND_DISPLAY -u DISPLAY -u SWAYSOCK WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 \
+    "$sway" --unsupported-gpu -c "$work/sway.conf" >"$work/sway.log" 2>&1 &
+pids+=($!)
+for _ in $(seq 100); do [ -s "$work/display" ] && break; sleep 0.1; done
+[ -s "$work/display" ] || { echo "headless sway did not start:" >&2; cat "$work/sway.log" >&2; exit 1; }
+display=$(cat "$work/display")
+
+# A virtual pointer and keyboard, created before the shell starts so that it sees them.
+coproc INPUT { exec python3 "$ROOT/dev/input.py" "$display" "${size%x*}" "${size#*x}"; }
+pids+=($INPUT_PID)
+read -r -t 10 _ <&"${INPUT[0]}" || { echo "the virtual input devices did not start" >&2; exit 1; }
+input() { echo "$*" >&"${INPUT[1]}"; read -r -t 20 _ <&"${INPUT[0]}" || { echo "input action failed: $*" >&2; exit 1; }; }
+
+env WAYLAND_DISPLAY="$display" QT_QPA_PLATFORM=wayland QT_FFMPEG_DECODING_HW_DEVICE_TYPES= FABLE_NO_RELOAD=1 FABLE_DEV_OPEN="$target" "${extra[@]}" \
+    "$quickshell" -p "$FABLE_SHELL" >"$work/shell.log" 2>&1 &
+pids+=($!)
+sleep "$wait"
+
+grab() { WAYLAND_DISPLAY="$display" grim "$@"; }
+
+while [ $# -gt 0 ]; do
+    action=$1; shift
+    case $action in
+        move|click|rclick|mclick) input "$action" "$1" "$2"; shift 2 ;;
+        hold) input hold "$1" "$2" "$3"; shift 3 ;;
+        drag) input drag "$1" "$2" "$3" "$4"; shift 4 ;;
+        scroll|key|type) input "$action" "$1"; shift ;;
+        wait) sleep "$1"; shift ;;
+        shot) grab "$1"; echo "saved $1"; shift ;;
+        *) echo "unknown action '$action'" >&2; exit 2 ;;
+    esac
+    sleep 0.15
+done
+
+if [ -n "$crop" ]; then
+    IFS=, read -r x y w h <<<"$crop"
+    grab -g "$x,$y ${w}x$h" "$out"
+else
+    grab "$out"
+fi
+echo "saved $out"
+# Strip colour codes; show only what needs attention.
+sed -E 's/\x1b\[[0-9;]*m//g' "$work/shell.log" | grep -E ' WARN| ERROR|error:' | grep -vE 'qt\.qpa|libEGL|MESA' | sed -E 's/^ *[0-9:. -]* *//' | sort | uniq -c | head -40 || true

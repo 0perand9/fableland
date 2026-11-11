@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Build and run the daemon for development: state in .sandbox/home, no shell
+# attached, and read-only — it watches your running session (so the UI has real
+# data to show) but refuses everything that would change it.
+#
+#   dev/daemon build | start | stop | restart | status | log
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+pidfile="$ROOT/.sandbox/daemon.pid"
+logfile="$ROOT/.sandbox/daemon.log"
+
+running() { [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; }
+
+build() {
+    cd "$ROOT/daemon"
+    # On NixOS a rustup toolchain cannot link; borrow the compiler from nixpkgs instead.
+    if command -v nix >/dev/null; then
+        nix shell nixpkgs#rustc nixpkgs#cargo nixpkgs#gcc -c cargo build
+    else
+        cargo build
+    fi
+}
+
+start() {
+    running && { echo "already running (pid $(cat "$pidfile"))"; return; }
+    [ -x "$FABLE_BIN" ] || build
+    mkdir -p "$ROOT/.sandbox"
+    setsid "$FABLE_BIN" daemon --no-shell --read-only >"$logfile" 2>&1 &
+    echo $! >"$pidfile"
+    for _ in $(seq 50); do [ -S "$FABLE_SOCK" ] && break; sleep 0.1; done
+    echo "started (pid $(cat "$pidfile")), socket $FABLE_SOCK"
+}
+
+stop() {
+    running || { echo "not running"; return; }
+    kill "$(cat "$pidfile")"
+    for _ in $(seq 30); do running || break; sleep 0.1; done
+    rm -f "$pidfile"
+    echo "stopped"
+}
+
+case "${1:-}" in
+    build) build ;;
+    start) start ;;
+    stop) stop ;;
+    restart) stop; start ;;
+    status) running && echo "running (pid $(cat "$pidfile"))" || echo "not running" ;;
+    log) exec tail -n "${2:-40}" "$logfile" ;;
+    *) sed -n '2,6p' "$0"; exit 2 ;;
+esac

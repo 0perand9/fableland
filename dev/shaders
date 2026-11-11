@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Compile the backdrop patterns (shell/widgets/backdrop/*.frag) for Qt, which
+# only loads shaders as .qsb. dev/window and dev/shot do this on their own, and
+# so does the flake when it builds; run it by hand before starting the shell
+# from the source tree any other way. Needs Qt's qsb (qtshadertools), or Nix.
+set -euo pipefail
+source "$(dirname "$0")/env.sh"
+build_shaders
