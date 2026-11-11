@@ -30,9 +30,8 @@ FocusScope {
                 popup("monitors", Icons.monitors, "Monitors", "Arrange your displays and set resolution, refresh rate, scale and rotation."),
                 popup("settings", Icons.settings, "Settings", "Everything that can be changed: keybinds, keyboard layouts, start-up programs and more."),
                 popup("updates", Icons.update, "Updates", "Which inputs of your system flake are behind, and one button to update them."),
-                popup("movies", Icons.movie, "Movies", "Trending films and series, a catalogue search and a link that opens a title where you watch."),
                 popup("assistant", Icons.robot, "Assistant", "Ask a question without leaving what you are doing.")
-            ]
+            ].concat(Plugins.list.filter(plugin => plugin.shell.popup).map(plugin => popup(plugin.name, plugin.icon, plugin.title || plugin.name, plugin.about)))
         },
         {
             title: "Around the desktop",

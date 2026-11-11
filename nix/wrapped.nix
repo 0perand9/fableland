@@ -1,22 +1,28 @@
-# Fableland ready to run: `fable` with Quickshell and the programs of its
-# features on PATH — appended, so the versions in your profile win. A feature
-# that is switched off brings nothing:
+# Fableland ready to run: `fable` with Quickshell, the programs of its
+# features and those its plugins ask for on PATH — appended, so the versions in
+# your profile win. A feature that is switched off brings nothing:
 #
-#   fableland.override { features.movies = false; features.capture = false; }
+#   fableland.override { features.capture = false; plugins = [ "movies" "arr" ]; }
 #
-# This only decides what is installed; what is switched on is a setting
+# `features` only decides what is installed; what is switched on is a setting
 # (`features` in settings.json, or managed.json — which the Home Manager module
-# writes from the same option).
+# writes from the same option). `plugins` decides what is built in; the ways of
+# naming one are in plugins.nix.
 {
   lib,
   pkgs,
+  callPackage,
   symlinkJoin,
   makeWrapper,
   fableland-unwrapped,
   features ? { },
+  plugins ? [ "movies" ],
 }:
 
 let
+  resolved = callPackage ./plugins.nix { } plugins;
+  unwrapped = fableland-unwrapped.override { plugins = map (plugin: plugin.src) resolved; };
+
   # Text is read off the screen in English, the language tesseract takes when
   # it is told none. Left to itself, nixpkgs brings every language: a gigabyte.
   tesseract = pkgs.tesseract.override { enableLanguages = [ "eng" ]; };
@@ -48,11 +54,13 @@ let
   # Every feature is on unless `features` says otherwise; colours are taken from the wallpaper.
   on = feature: features.${feature} or true;
   wanted = lib.filterAttrs (feature: _: on feature && (feature != "palette" || on "wallpaper")) tools;
-  programs = lib.filter (program: program != null) (
-    map (tool: if lib.isString tool then pkgs.${tool} or null else tool) (
-      lib.concatLists (lib.attrValues wanted)
+  programs =
+    lib.filter (program: program != null) (
+      map (tool: if lib.isString tool then pkgs.${tool} or null else tool) (
+        lib.concatLists (lib.attrValues wanted)
+      )
     )
-  );
+    ++ lib.concatMap (plugin: plugin.runtimeInputs) resolved;
 
   # Quickshell finds the Qt modules it was built with; the shell also imports
   # QtMultimedia, to preview video wallpapers.
@@ -69,13 +77,13 @@ let
 in
 symlinkJoin {
   pname = "fableland";
-  inherit (fableland-unwrapped) version;
-  paths = [ fableland-unwrapped ];
+  inherit (unwrapped) version;
+  paths = [ unwrapped ];
   nativeBuildInputs = [ makeWrapper ];
   postBuild = ''
     wrapProgram $out/bin/fable --suffix PATH : ${lib.makeBinPath ([ quickshell ] ++ programs)}
   '';
   # For running the shell from a source tree, as dev/window does.
-  passthru = { inherit quickshell; };
-  meta = fableland-unwrapped.meta;
+  passthru = { inherit quickshell unwrapped; };
+  meta = unwrapped.meta;
 }

@@ -1,4 +1,4 @@
-/daemon/target/
+/target/
 /result
 *.qmlc
 *.qsb

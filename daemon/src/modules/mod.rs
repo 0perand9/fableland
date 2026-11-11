@@ -9,7 +9,6 @@ pub mod focus;
 pub mod hypr;
 pub mod media;
 pub mod misc;
-pub mod movies;
 pub mod net;
 pub mod notif;
 pub mod power;

@@ -7,6 +7,7 @@ import qs.core
 import qs.bar
 import qs.popups
 import qs.overlays
+import qs.plugins // so that Quickshell knows the plugins' QML (plugins/Index.qml)
 
 // Fableland's view layer. Everything here only draws state published by the
 // `fable` daemon and sends the user's actions back to it (core/Daemon.qml).

@@ -3,7 +3,7 @@
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 export FABLE_HOME="$ROOT/.sandbox/home"
 export FABLE_SOCK="$FABLE_HOME/run/fable.sock"
-FABLE_BIN="$ROOT/daemon/target/debug/fable"
+FABLE_BIN="$ROOT/target/debug/fable"
 # The shell the dev scripts show; set FABLE_SHELL to try another copy of it.
 FABLE_SHELL=${FABLE_SHELL:-$ROOT/shell}
 

@@ -15,6 +15,7 @@
     {
       # fableland            ready to run: with Quickshell and the programs of its features
       # fableland-unwrapped  the daemon and the shell alone; the rest comes from your environment
+      # Both come with the movies plugin; `.override { plugins = [ … ]; }` chooses others.
       packages = forEach (pkgs: rec {
         fableland-unwrapped = pkgs.callPackage ./nix/package.nix { };
         fableland = pkgs.callPackage ./nix/wrapped.nix { inherit fableland-unwrapped; };
@@ -26,7 +27,7 @@
         fableland = final.callPackage ./nix/wrapped.nix { };
       };
 
-      # programs.fableland: the package, which features are on, and settings to fix.
+      # programs.fableland: the package, its plugins, which features are on, and settings to fix.
       homeModules.default = ./nix/home-module.nix;
 
       devShells = forEach (pkgs: {

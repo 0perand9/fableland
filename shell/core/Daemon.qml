@@ -13,6 +13,7 @@ import Quickshell.Io
 //            Daemon.call("clipboard.list", { limit: 50 }, (result, error) => {})
 //   on-demand topics   Want { topic: "sys" }   (widgets/Want.qml)
 //   features           Daemon.has("weather")   false for a part that is switched off
+//   plugins' topics    Daemon.topic("crypto", fallback)
 Singleton {
     id: root
 
@@ -37,6 +38,10 @@ Singleton {
     property var managed: ({})
     // Which parts of the shell are on, by name; see has().
     property var features: ({})
+    // The plugins of this build: their plugin.json (see docs/PLUGINS.md and core/Plugins.qml).
+    property var plugins: []
+    // Topics the shell has no property for — the plugins' — by name; see topic().
+    property var others: ({})
     property var notif: ({ dnd: false, items: [] })
     property var capture: ({ recording: { active: false }, tools: ({}) })
     property var timers: ({
@@ -124,6 +129,11 @@ Singleton {
         return v === null || typeof v !== "object" || Array.isArray(v);
     }
 
+    // The state of a topic without a property of its own, such as a plugin's.
+    function topic(name, fallback) {
+        return root.others[name] ?? fallback;
+    }
+
     // Whether a feature is on (docs/PROTOCOL.md lists them). What is off does not
     // exist: no popup, no button, no call to the daemon.
     function has(feature) {
@@ -166,8 +176,13 @@ Singleton {
             return;
         }
         if (msg.t !== undefined) {
-            if (internal.topics.has(msg.t))
+            if (internal.topics.has(msg.t)) {
                 root[msg.t] = msg.d;
+            } else {
+                const others = Object.assign({}, root.others);
+                others[msg.t] = msg.d;
+                root.others = others;
+            }
         } else if (msg.e !== undefined) {
             root.event(msg.e, msg.d);
         } else if (msg.id === 0) {
@@ -183,7 +198,7 @@ Singleton {
     QtObject {
         id: internal
 
-        readonly property var topics: new Set(["hypr", "monitors", "audio", "power", "session", "net", "bt", "media", "eq", "theme", "settings", "managed", "features", "notif", "capture", "timers", "weather", "sysinfo", "wallpaper", "wallsearch", "apps", "updates", "schedule", "sys", "focus"])
+        readonly property var topics: new Set(["hypr", "monitors", "audio", "power", "session", "net", "bt", "media", "eq", "theme", "settings", "managed", "features", "plugins", "notif", "capture", "timers", "weather", "sysinfo", "wallpaper", "wallsearch", "apps", "updates", "schedule", "sys", "focus"])
         property int lastId: 0
         property var pending: ({})
         property var wants: ({})

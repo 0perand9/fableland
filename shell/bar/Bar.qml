@@ -122,6 +122,13 @@ PanelWindow {
             anchors.right: parent.right
             spacing: Theme.px(4)
 
+            // What plugins put in the bar.
+            Slot {
+                name: "bar"
+                spacing: Theme.px(4)
+                context: ({ screen: bar.screen })
+            }
+
             Tray {
                 order: 5
                 window: bar

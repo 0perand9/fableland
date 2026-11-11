@@ -118,7 +118,7 @@ pub async fn call(name: &str, p: &Value) -> Result<Value> {
 }
 
 /// Where the QML lives: an explicit option, an installed copy next to the
-/// binary, or the source tree when running from `daemon/target/*`.
+/// binary, or the source tree when running from `target/*`.
 pub fn shell_dir() -> Option<PathBuf> {
     if let Some(dir) = &options().shell_dir {
         return Some(dir.clone());
@@ -128,7 +128,7 @@ pub fn shell_dir() -> Option<PathBuf> {
     }
     let exe = std::env::current_exe().ok()?;
     let bin = exe.parent()?;
-    [bin.join("../share/fableland/shell"), bin.join("../../../shell")].into_iter().find(|p| p.join("shell.qml").exists()).and_then(|p| p.canonicalize().ok())
+    [bin.join("../share/fableland/shell"), bin.join("../../shell")].into_iter().find(|p| p.join("shell.qml").exists()).and_then(|p| p.canonicalize().ok())
 }
 
 /// Bundled assets (sounds), resolved the same way as the shell directory.

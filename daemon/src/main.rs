@@ -7,6 +7,8 @@
 //!
 //!   pub async fn run() -> Result<()>                 long-running task, publishes topics
 //!   pub async fn call(name, params) -> Result<Value> handles "<module>.<name>" requests
+//!
+//! Plugins (`plugins.rs`) have the same shape and are routed the same way.
 
 mod cli;
 mod dbus;
@@ -14,6 +16,7 @@ mod features;
 mod hub;
 mod ipc;
 mod modules;
+mod plugins;
 mod settings;
 mod util;
 
@@ -59,7 +62,7 @@ fn allowed_read_only(method: &str, p: &Value) -> bool {
     const METHODS: &[&str] = &[
         "cmd", "settings.get", "hypr.binds", "hypr.clients", "clipboard.list", "clipboard.text", "focus.stats", "focus.setIdle",
         "misc.sysinfo", "misc.xkbLayouts", "misc.suggestDirs", "misc.diaryDays", "misc.image", "misc.sound", "weather.geocode", "weather.refresh",
-        "movies.trending", "movies.search", "movies.details", "movies.history", "movies.rememberSearch", "notif.dismiss", "notif.dismissApp", "notif.clear",
+        "notif.dismiss", "notif.dismissApp", "notif.clear",
         "notif.test", "notif.setDnd", "wallpaper.search", "wallpaper.searchStop", "wallpaper.rescan", "apps.refresh", "updates.check", "power.refresh",
         // The lock is the shell's own, over whatever compositor it runs in.
         "session.lock", "session.unlock",
@@ -67,6 +70,7 @@ fn allowed_read_only(method: &str, p: &Value) -> bool {
     const COSMETIC_SETTINGS: &[&str] =
         &["uiScale", "workspaceCount", "showHelpIcon", "backdrop.style", "backdrop.strength", "backdrop.speed", "backdrop.reactive"];
     METHODS.contains(&method)
+        || plugins::allowed_read_only(method)
         || method.starts_with("ui.")
         || method.starts_with("timers.")
         || (method == "settings.set" && p["key"].as_str().is_some_and(|k| COSMETIC_SETTINGS.contains(&k)))
@@ -119,9 +123,11 @@ pub async fn dispatch(method: &str, p: &Value) -> Result<Value> {
         "timers" => timers::call(name, p).await,
         "weather" => weather::call(name, p).await,
         "updates" => updates::call(name, p).await,
-        "movies" => movies::call(name, p).await,
         "misc" => misc::call(name, p).await,
-        _ => bail!("unknown method '{method}'"),
+        _ => match plugins::call(ns, name, p).await {
+            Some(reply) => reply,
+            None => bail!("unknown method '{method}'"),
+        },
     }
 }
 
@@ -175,6 +181,7 @@ async fn daemon_main() -> Result<Exit> {
     start("updates", updates::run());
     start("misc", misc::run());
     start("ui", ui::run());
+    plugins::start();
 
     let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
     let exit = tokio::select! {

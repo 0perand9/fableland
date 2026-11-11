@@ -1,7 +1,7 @@
 import QtQuick
 import qs.core
 import qs.widgets
-import qs.popups.movies
+import qs.plugins.movies
 
 // A browser for the film and series catalogue: what is trending, a search, a
 // title's details — and a button that opens the title with a link of the

@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# Choose the plugins of a build. Writes the two places that list them:
+#
+#   daemon/plugin-set/   the crate that compiles their code into the daemon
+#   shell/plugins/       their QML (linked, or copied with --copy), and Index.qml
+#
+#   plugins/assemble                     every plugin in plugins/
+#   plugins/assemble movies arr          just these
+#   plugins/assemble ~/src/fable-thing   a plugin from elsewhere: copied into plugins/ first
+#   plugins/assemble --none              no plugins at all
+#   plugins/assemble --copy …            copy the QML instead of linking it (for packaging)
+#
+# Then build as usual (cargo build). Needs jq.
+set -euo pipefail
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+copy=false
+if [ "${1:-}" = --copy ]; then
+    copy=true
+    shift
+fi
+
+fail() {
+    echo "plugins/assemble: $*" >&2
+    exit 1
+}
+
+name_in() {
+    jq -er '.name | strings' "$1/plugin.json" 2>/dev/null || fail "$1/plugin.json has no name"
+}
+
+none=false
+if [ "${1:-}" = --none ]; then
+    none=true
+    shift
+fi
+
+names=()
+if $none; then
+    :
+elif [ $# -eq 0 ]; then
+    for dir in "$root"/plugins/*/; do
+        [ -f "$dir/plugin.json" ] && names+=("$(basename "$dir")")
+    done
+else
+    for arg in "$@"; do
+        if [[ $arg != */* ]]; then
+            names+=("$arg")
+            continue
+        fi
+        # A plugin from elsewhere takes the place of any plugin of the same name.
+        [ -f "$arg/plugin.json" ] || fail "$arg has no plugin.json"
+        name=$(name_in "$arg")
+        if [ "$(realpath "$arg")" != "$(realpath -m "$root/plugins/$name")" ]; then
+            rm -rf "${root:?}/plugins/$name"
+            cp -r --no-preserve=mode "$arg" "$root/plugins/$name"
+        fi
+        names+=("$name")
+    done
+fi
+
+for name in "${names[@]}"; do
+    dir="$root/plugins/$name"
+    [ -f "$dir/plugin.json" ] || fail "there is no plugin '$name' in plugins/"
+    [[ $name =~ ^[a-z][a-z0-9]*$ ]] || fail "'$name': a plugin's name is lowercase letters and digits"
+    [ "$(name_in "$dir")" = "$name" ] || fail "plugins/$name/plugin.json names another plugin"
+    if [ -f "$dir/Cargo.toml" ] && ! grep -Eq "^name *= *\"fable-$name\"" "$dir/Cargo.toml"; then
+        fail "plugins/$name/Cargo.toml: the crate must be called fable-$name"
+    fi
+done
+
+# ── the daemon's side
+set_dir="$root/daemon/plugin-set"
+mkdir -p "$set_dir/src"
+{
+    echo "# Written by plugins/assemble: the plugins compiled into this build."
+    echo "[package]"
+    echo "name = \"fable-plugin-set\""
+    echo "version = \"0.0.0\""
+    echo "edition.workspace = true"
+    echo "publish = false"
+    echo
+    echo "[dependencies]"
+    echo "fable-plugin.workspace = true"
+    for name in "${names[@]}"; do
+        [ -f "$root/plugins/$name/Cargo.toml" ] && echo "fable-$name = { path = \"../../plugins/$name\" }"
+    done
+} >"$set_dir/Cargo.toml"
+{
+    echo "// Written by plugins/assemble: the plugins compiled into this build."
+    echo "pub fn all() -> Vec<fable_plugin::Entry> {"
+    echo "    vec!["
+    for name in "${names[@]}"; do
+        code=None
+        [ -f "$root/plugins/$name/Cargo.toml" ] && code="Some(fable_$name::plugin())"
+        echo "        fable_plugin::Entry { manifest: include_str!(\"../../../plugins/$name/plugin.json\"), plugin: $code },"
+    done
+    echo "    ]"
+    echo "}"
+} >"$set_dir/src/lib.rs"
+
+# ── the shell's side
+shell_dir="$root/shell/plugins"
+rm -rf "$shell_dir"
+mkdir -p "$shell_dir"
+imports=()
+for name in "${names[@]}"; do
+    [ -d "$root/plugins/$name/shell" ] || continue
+    if $copy; then
+        cp -r --no-preserve=mode "$root/plugins/$name/shell" "$shell_dir/$name"
+    else
+        ln -s "../../plugins/$name/shell" "$shell_dir/$name"
+    fi
+    imports+=("import qs.plugins.$name")
+done
+{
+    echo "// Written by plugins/assemble. Quickshell only knows the modules it reaches by"
+    echo "// following imports from shell.qml: this makes each plugin's QML one of them."
+    echo "import QtQuick"
+    for line in "${imports[@]}"; do
+        echo "$line"
+    done
+    echo
+    echo "QtObject {}"
+} >"$shell_dir/Index.qml"
+
+echo "plugins: ${names[*]:-(none)}"

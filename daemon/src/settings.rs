@@ -16,8 +16,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tokio::sync::watch;
 
-pub fn defaults() -> Value {
-    json!({
+/// The defaults of the daemon's own settings.
+pub fn core_defaults() -> &'static Value {
+    static CORE: std::sync::OnceLock<Value> = std::sync::OnceLock::new();
+    CORE.get_or_init(|| json!({
         "uiScale": 1.0,
         "workspaceCount": 8,
         "showHelpIcon": true,
@@ -56,14 +58,21 @@ pub fn defaults() -> Value {
         "diary": { "dir": "~/Documents/Diary", "obsidianVault": "" },
         "schedule": { "command": "" },
         "updates": { "flakeDir": "", "command": "", "intervalHours": 6 },
-        "movies": { "openWith": "https://www.justwatch.com/us/search?q={title}" },
         "launcher": { "searchUrl": "https://duckduckgo.com/?q={query}" },
         "backdrop": { "style": "contours", "strength": 100, "speed": 100, "reactive": true },
         "osd": true,
-        "sounds": true,
-        // See features.rs.
-        "features": crate::features::names().map(|name| (name.to_string(), json!(true))).collect::<Map<_, _>>()
-    })
+        "sounds": true
+    }))
+}
+
+/// Every default: the daemon's own, each plugin's under its name, and the features (see features.rs).
+pub fn defaults() -> Value {
+    let mut all = core_defaults().clone();
+    for (plugin, settings) in crate::plugins::default_settings() {
+        all[plugin] = settings.clone();
+    }
+    all["features"] = crate::features::names().map(|name| (name.to_string(), json!(true))).collect::<Map<_, _>>().into();
+    all
 }
 
 pub struct Settings {

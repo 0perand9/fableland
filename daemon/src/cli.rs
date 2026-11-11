@@ -17,7 +17,8 @@ USAGE
 
 COMMANDS
   toggle|open <popup> [arg]     launcher clipboard wallpaper calendar music network volume
-                                control focus monitors settings guide updates movies assistant
+                                control focus monitors settings guide updates assistant,
+                                and the popup of a plugin by its name (fable get plugins)
   toggle|open quick [tool]      the quick panel; tool: draw system timers
   close                         close the open popup
   lock | logout | suspend | reboot | poweroff

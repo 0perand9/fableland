@@ -1,7 +1,7 @@
 [package]
 name = "fable"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
 description = "Fableland daemon: the single bridge between Hyprland, the system and the Quickshell UI"
 
 [[bin]]
@@ -9,6 +9,8 @@ name = "fable"
 path = "src/main.rs"
 
 [dependencies]
+fable-plugin.workspace = true
+fable-plugin-set = { path = "plugin-set" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "process", "sync", "time", "fs", "signal"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -20,12 +22,3 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 ureq = { version = "2", features = ["json"] }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif", "pnm", "bmp"] }
 libc = "0.2"
-
-# Dependencies do the heavy lifting (image decoding, sqlite); keep them fast in dev builds too.
-[profile.dev.package."*"]
-opt-level = 3
-
-[profile.release]
-opt-level = 3
-lto = "thin"
-strip = true

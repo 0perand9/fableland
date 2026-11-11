@@ -1,12 +1,14 @@
 //! Small shared helpers: paths, process spawning, parameter access, logging.
 
 use anyhow::{anyhow, bail, Context, Result};
-use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::OnceLock;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 use tokio::process::{Child, Command};
+
+// Shared with plugins, which get them from the same place.
+pub use fable_plugin::util::{expand, home, now_ms, now_s, read_json, write_atomic, write_json, Params};
 
 #[macro_export]
 macro_rules! log {
@@ -24,10 +26,6 @@ pub struct Dirs {
     pub cache: PathBuf,
     /// Per-session scratch space on tmpfs (socket, freeze frames).
     pub run: PathBuf,
-}
-
-pub fn home() -> PathBuf {
-    PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/".into()))
 }
 
 fn env_dir(var: &str, fallback: PathBuf) -> PathBuf {
@@ -65,50 +63,12 @@ pub fn socket_path() -> PathBuf {
     }
 }
 
-/// Expand a leading `~` and return an absolute path.
-pub fn expand(path: &str) -> PathBuf {
-    if path == "~" {
-        home()
-    } else if let Some(rest) = path.strip_prefix("~/") {
-        home().join(rest)
-    } else {
-        PathBuf::from(path)
-    }
-}
-
 pub fn ensure_dir(p: &Path) -> &Path {
     let _ = std::fs::create_dir_all(p);
     p
 }
 
-/// Write a file so readers never observe a half-written state.
-pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let tmp = path.with_extension(format!("tmp{}", std::process::id()));
-    std::fs::write(&tmp, bytes)?;
-    std::fs::rename(&tmp, path)?;
-    Ok(())
-}
-
-pub fn read_json(path: &Path) -> Option<Value> {
-    serde_json::from_slice(&std::fs::read(path).ok()?).ok()
-}
-
-pub fn write_json(path: &Path, v: &Value) -> Result<()> {
-    write_atomic(path, serde_json::to_string_pretty(v)?.as_bytes())
-}
-
 // ---------------------------------------------------------------- time
-
-pub fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
-}
-
-pub fn now_s() -> u64 {
-    now_ms() / 1000
-}
 
 pub fn mtime_s(path: &Path) -> u64 {
     std::fs::metadata(path)
@@ -279,39 +239,4 @@ pub fn lua_str(s: &str) -> String {
     }
     out.push('"');
     out
-}
-
-/// Typed access to request parameters with readable error messages.
-pub trait Params {
-    fn str(&self, key: &str) -> Result<&str>;
-    fn str_or<'a>(&'a self, key: &str, default: &'a str) -> &'a str;
-    fn num(&self, key: &str) -> Result<f64>;
-    fn num_or(&self, key: &str, default: f64) -> f64;
-    fn int(&self, key: &str) -> Result<i64>;
-    fn flag(&self, key: &str) -> Result<bool>;
-    fn flag_or(&self, key: &str, default: bool) -> bool;
-}
-
-impl Params for Value {
-    fn str(&self, key: &str) -> Result<&str> {
-        self.get(key).and_then(Value::as_str).ok_or_else(|| anyhow!("missing string parameter '{key}'"))
-    }
-    fn str_or<'a>(&'a self, key: &str, default: &'a str) -> &'a str {
-        self.get(key).and_then(Value::as_str).unwrap_or(default)
-    }
-    fn num(&self, key: &str) -> Result<f64> {
-        self.get(key).and_then(Value::as_f64).ok_or_else(|| anyhow!("missing number parameter '{key}'"))
-    }
-    fn num_or(&self, key: &str, default: f64) -> f64 {
-        self.get(key).and_then(Value::as_f64).unwrap_or(default)
-    }
-    fn int(&self, key: &str) -> Result<i64> {
-        self.num(key).map(|n| n.round() as i64)
-    }
-    fn flag(&self, key: &str) -> Result<bool> {
-        self.get(key).and_then(Value::as_bool).ok_or_else(|| anyhow!("missing boolean parameter '{key}'"))
-    }
-    fn flag_or(&self, key: &str, default: bool) -> bool {
-        self.get(key).and_then(Value::as_bool).unwrap_or(default)
-    }
 }

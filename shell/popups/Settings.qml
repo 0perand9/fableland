@@ -12,7 +12,7 @@ PopupPage {
     // `key` names the page's file and is the argument of `fable toggle settings <key>`;
     // `short` stands in on the rail for a title that does not fit there. A page
     // about `features` (Daemon.has) is left out while all of them are off.
-    readonly property var pages: [
+    readonly property var corePages: [
         { key: "general", title: "General", icon: Icons.tune },
         { key: "appearance", title: "Appearance", icon: Icons.palette },
         { key: "weather", title: "Weather", icon: Icons.weatherPartlyDay, features: ["weather"] },
@@ -26,9 +26,10 @@ PopupPage {
         { key: "capture", title: "Capture & clipboard", short: "Capture", icon: Icons.screenshot, features: ["capture", "clipboard"] },
         { key: "calendar", title: "Calendar", icon: Icons.calendar },
         { key: "updates", title: "Updates", icon: Icons.update, features: ["updates"] },
-        { key: "movies", title: "Movies", icon: Icons.movie, features: ["movies"] },
         { key: "about", title: "About", icon: Icons.info }
     ].filter(entry => !entry.features || entry.features.some(feature => Daemon.has(feature)))
+    // The plugins' pages go before About; theirs name their file.
+    readonly property var pages: corePages.slice(0, -1).concat(Plugins.settingsPages, corePages.slice(-1))
     property int current: indexOf(arg)
 
     readonly property bool searching: Search.active
@@ -319,7 +320,7 @@ PopupPage {
                         active: slot.wanted
                         // A search loads all pages at once: spread that over a few frames.
                         asynchronous: page.searching
-                        source: Qt.resolvedUrl("settings/" + Fmt.capitalize(slot.modelData.key) + "Page.qml")
+                        source: slot.modelData.file ?? Qt.resolvedUrl("settings/" + Fmt.capitalize(slot.modelData.key) + "Page.qml")
                     }
 
                     Binding {

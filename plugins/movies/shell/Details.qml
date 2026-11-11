@@ -4,7 +4,8 @@ import qs.widgets
 
 // One title in full: backdrop, poster, what it is about and who is in it, the
 // seasons and episodes of a series, and the button that opens it with the
-// link from the `movies.openWith` setting.
+// link from the `movies.openWith` setting. Other plugins can add buttons beside
+// it through the `movies.details.actions` slot.
 //
 // Keys: Enter opens; for a series Up/Down pick the episode and Tab the season.
 FocusScope {
@@ -249,6 +250,12 @@ FocusScope {
                 text: "IMDb"
                 size: 14
                 onClicked: Daemon.send("misc.open", { target: "https://www.imdb.com/title/" + view.title.id + "/" })
+            }
+
+            // What other plugins offer for a title (the arr plugin: request it).
+            Slot {
+                name: "movies.details.actions"
+                context: ({ title: view.title, details: view.details, hue: view.hue })
             }
         }
 

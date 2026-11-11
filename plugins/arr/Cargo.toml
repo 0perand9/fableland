@@ -1,0 +1,8 @@
+[package]
+name = "fable-arr"
+version = "1.0.0"
+edition.workspace = true
+description = "Fableland plugin: request titles from Sonarr and Radarr"
+
+[dependencies]
+fable-plugin.workspace = true

@@ -128,13 +128,20 @@ Use `Theme` in QML, never this topic directly.
 The complete settings tree — the defaults, with `settings.json` and then `managed.json` on top; see [Settings](#settings).
 
 ### `managed`
-`{ "terminal": "kitty", "features": { "movies": false } }` — the settings a system configuration fixes (`managed.json`):
+`{ "terminal": "kitty", "features": { "weather": false } }` — the settings a system configuration fixes (`managed.json`):
 the same tree as `settings`, with only those keys. `settings.set` refuses them. In QML: `Daemon.fixed(path)`.
 
 ### `features`
 `{ "wallpaper": true, "palette": true, "notifications": true, "clipboard": true, "capture": true, "lock": true, "focus": true,
-"weather": true, "updates": true, "movies": false, "assistant": true, "quick": true }` — which [features](#features) are on.
+"weather": true, "updates": true, "assistant": true, "quick": true, "movies": false }` — which [features](#features) are on,
+each plugin's among them.
 It does not change while the daemon runs. In QML: `Daemon.has(feature)`.
+
+### `plugins`
+`[{ "name": "movies", "title": "Movies", "icon": "…", "about": "…", "settings": { … }, "readOnly": ["…"],
+"shell": { "popup": "Popup.qml", "settings": "Settings.qml", "slots": {} } }]` — the plugins of this build: their
+plugin.json ([docs/PLUGINS.md](PLUGINS.md)). Those switched off are listed too; `features` says which.
+A plugin publishes topics of its own, usually one named after it; the shell reads those as `Daemon.topic(name)`.
 
 ### `notif`
 ```json
@@ -295,12 +302,7 @@ Seconds everywhere. With `app` (a class) the numbers are for that application on
 
 **updates** — `updates.check`, `updates.run` (opens a terminal running the update command).
 
-**movies** — `type` is `movie` or `series`.
-`movies.trending {type}` / `movies.search {query, type}` → `[{ id, title, poster, year, rating, type }]`,
-`movies.details {id, type}` → `{ id, type, title, description, poster, background, year, rating, runtime, genres, cast, episodes: [{ season, episode, title }] }`,
-`movies.history` → `{ searches: ["…"], watched: [{ id, title, poster, type }] }`,
-`movies.rememberSearch {query}` → history (searches are not remembered by themselves), `movies.forgetSearch {query}` → history,
-`movies.open {id, title, poster?, type, season?, episode?}` → history (opens the `movies.openWith` link).
+**Plugins** answer `<plugin>.<method>`; each plugin's README lists its methods (`plugins/movies/README.md`, …).
 
 **misc** — `misc.open {target}` (xdg-open a path or URL), `misc.sound {name}`, `misc.sysinfo`,
 `misc.image {url}` → local path of the picture, downloaded into the cache and converted to JPEG if Qt might not read it (`RemoteImage` widget),
@@ -342,11 +344,12 @@ configuration decides settings (the Home Manager module writes it). Both files a
 | `diary.dir`, `diary.obsidianVault` | `~/Documents/Diary`, `""` | |
 | `schedule.command` | `""` | prints the schedule JSON |
 | `updates.flakeDir`, `updates.command`, `updates.intervalHours` | auto, auto, `6` | |
-| `movies.openWith` | JustWatch search | link template: `{title}` `{id}` `{type}` `{season}` `{episode}` |
 | `launcher.searchUrl` | DuckDuckGo | where the launcher searches the web: a link with `{query}` |
 | `backdrop.style` | `contours` | what moves behind a popup: `blobs`, `lattice`, `contours`, `ripples`, `rosette`, `cells` or `none` |
 | `backdrop.strength`, `backdrop.speed` | `100`, `100` | per cent of the usual visibility and pace; speed `0` stands still |
 | `backdrop.reactive` | `true` | the pattern answers to the pointer |
+
+A plugin's settings are under its name (`movies.openWith`, `arr.sonarr.url`, …), with the defaults from its plugin.json.
 
 ## Features
 
@@ -365,9 +368,11 @@ They are listed in `daemon/features.json`, which the Nix module reads too:
 | `focus` | screen-time tracking, `focus.*`, the focus popup |
 | `weather` | the `weather` topic and `weather.*` |
 | `updates` | the `updates` topic, `updates.*`, the updates popup |
-| `movies` | `movies.*`, the movies popup |
 | `assistant` | the assistant popup |
 | `quick` | the quick panel |
+
+Every plugin is a feature too, named after it: off, its task does not run, its methods are refused and the shell shows
+nothing of it.
 
 The topic of a feature that is off is not published; the shell's defaults for it (`core/Daemon.qml`) say "nothing here".
 What is on is settled when the daemon starts. When `features` changes it restarts itself (once the session is not locked).
@@ -377,7 +382,8 @@ What is on is settled when the daemon starts. When `features` changes it restart
 ```
 fable daemon [--no-shell] [--shell-dir DIR]
 fable toggle|open <popup> [arg]      launcher clipboard wallpaper calendar music network volume
-                                     control focus monitors settings guide updates movies assistant
+                                     control focus monitors settings guide updates assistant,
+                                     and a plugin's popup by the plugin's name
 fable toggle|open quick [draw|system|timers]      the quick panel
 fable close
 fable lock | logout | suspend | reboot | poweroff

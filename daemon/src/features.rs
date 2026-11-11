@@ -1,21 +1,36 @@
 //! Features: the parts of Fableland that can be switched off.
 //!
-//! `"features": { "movies": false }` in the settings leaves a part out
+//! `"features": { "weather": false }` in the settings leaves a part out
 //! altogether: its module does not run, its methods are refused and the shell
 //! shows no trace of it. What is on is decided once, when the daemon starts,
 //! and published as the `features` topic — a module that never ran has nothing
-//! to undo. When the setting changes, the daemon restarts itself.
+//! to undo. When the setting changes, the daemon restarts itself. Every plugin
+//! is a feature too, named after it.
 
 use crate::{d, log};
 use anyhow::{bail, Result};
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
-/// Every feature with what it is, from features.json: the one list, which the
-/// Nix module reads too. All are on unless the settings say otherwise.
+/// The daemon's own features with what they are, from features.json: the one
+/// list, which the Nix module reads too.
+fn core() -> &'static BTreeMap<String, String> {
+    static CORE: OnceLock<BTreeMap<String, String>> = OnceLock::new();
+    CORE.get_or_init(|| serde_json::from_str(include_str!("../features.json")).expect("features.json maps names to descriptions"))
+}
+
+pub fn is_core(name: &str) -> bool {
+    core().contains_key(name)
+}
+
+/// Every feature: the daemon's own and one per plugin. All are on unless the settings say otherwise.
 fn all() -> &'static BTreeMap<String, String> {
     static ALL: OnceLock<BTreeMap<String, String>> = OnceLock::new();
-    ALL.get_or_init(|| serde_json::from_str(include_str!("../features.json")).expect("features.json maps names to descriptions"))
+    ALL.get_or_init(|| {
+        let mut all = core().clone();
+        all.extend(crate::plugins::all().iter().map(|p| (p.manifest.name.clone(), p.manifest.about.clone())));
+        all
+    })
 }
 
 pub fn names() -> impl Iterator<Item = &'static str> {
@@ -63,7 +78,8 @@ pub fn of(method: &str) -> Option<&str> {
         ("clipboard", "copyText") => None,
         ("session", "lock") => Some("lock"),
         ("notif", _) => Some("notifications"),
-        ("wallpaper" | "clipboard" | "capture" | "focus" | "weather" | "updates" | "movies", _) => Some(module),
+        ("wallpaper" | "clipboard" | "capture" | "focus" | "weather" | "updates", _) => Some(module),
+        _ if crate::plugins::find(module).is_some() => Some(module),
         _ => None,
     }
 }

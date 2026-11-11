@@ -35,6 +35,8 @@ this version are mine.
   it starts and supervises the shell.
 * **`shell/`** — the Quickshell configuration. A pure view: it never runs a
   process, reads a file or polls anything. No helper scripts exist.
+* **`plugins/`** — additions compiled into both: code that runs in the daemon,
+  QML that runs in the shell. See [Plugins](#plugins).
 
 Nothing polls: the daemon listens (D-Bus signals, Hyprland's event socket,
 `pactl subscribe`) and pushes a topic only when it actually changed; expensive
@@ -59,10 +61,27 @@ screen wants it.
 | **Settings** | everything, including keybinds, keyboard layouts and startup applications (applied live by the daemon) |
 | **Guide** | what everything does, with a live cheat-sheet of your keybinds |
 | **Updates** | which inputs of your NixOS flake are behind |
-| **Movies** | browse a film/series catalogue and open a title on the site of your choice |
 | **Quick panel** | on-screen drawing, system usage, timer / stopwatch / pomodoro |
 | **Backdrops** | a moving pattern behind every popup that answers to the pointer — contour lines, a dot lattice, ripples, guilloché, Voronoi cells or soft blobs — with its strength and speed in Settings |
 | **Also** | notification pop-ups, volume/brightness OSD, lock screen (PAM), screenshots with region select, edit, OCR and QR, screen recording, idle handling |
+
+## Plugins
+
+Plugins are compiled into the daemon and the shell, with the same reach as
+their own parts: a plugin can add a popup, something to the bar, a Settings
+page, or buttons in a place another part leaves open. Three come with
+Fableland:
+
+| | |
+| --- | --- |
+| [**movies**](plugins/movies) | browse a film/series catalogue and open a title on the site of your choice (on by default) |
+| [**arr**](plugins/arr) | request a title from Sonarr or Radarr, right from its page in movies |
+| [**crypto**](plugins/crypto) | coin prices in the bar |
+
+Others can come from anywhere: a folder, a flake input, or a GitHub repository
+pinned by its hash. They are trusted like the rest of your configuration, so
+read one before you add it. [docs/PLUGINS.md](docs/PLUGINS.md) covers writing
+and installing them.
 
 ## Running it
 
@@ -98,10 +117,12 @@ imports = [ inputs.fableland.homeModules.default ];
 
 programs.fableland = {
   enable = true;
-  features.movies = false;
+  features.weather = false;
+  plugins = [ "movies" "arr" ];
   settings = {
     terminal = "kitty";
     wallpaper.dir = "~/Pictures/Wallpapers";
+    arr.sonarr = { url = "http://localhost:8989"; apiKeyFile = "/run/secrets/sonarr"; };
   };
 };
 ```
@@ -109,9 +130,10 @@ programs.fableland = {
 **Without Nix**
 
 ```sh
-cd daemon && cargo build --release
-../dev/shaders                     # compiles the backdrop patterns; needs Qt's qsb (qtshadertools)
-./target/release/fable daemon      # finds ../shell on its own when run from the source tree
+plugins/assemble movies          # the plugins to build in (none named: all of them); needs jq
+cargo build --release
+dev/shaders                      # compiles the backdrop patterns; needs Qt's qsb (qtshadertools)
+./target/release/fable daemon    # finds shell/ on its own when run from the source tree
 ```
 
 **In Hyprland** start the daemon once and bind keys to it — see
@@ -166,7 +188,6 @@ running daemon picks it up when a rebuild replaces it.
 | `focus` | screen-time statistics |
 | `weather` | the weather in the bar, in the calendar and on the lock screen |
 | `updates` | checking the inputs of the system flake for updates |
-| `movies` | the film and series catalogue |
 | `assistant` | the assistant |
 | `quick` | the quick panel at the screen edges |
 
@@ -176,7 +197,7 @@ the Nix package leaves out the programs only it needs. The daemon restarts
 itself when the features change.
 
 ```json
-{ "features": { "movies": false, "notifications": false } }
+{ "features": { "weather": false, "notifications": false } }
 ```
 
 ## Working on it
@@ -190,18 +211,23 @@ daemon/
     ipc.rs         the socket
     settings.rs    settings.json and managed.json
     features.rs    what is switched on
+    plugins.rs     the plugins: loading them, and what they can reach
     modules/       one file per area: audio.rs, net.rs, wallpaper.rs, ...
+  api/             fable-plugin: what a plugin is written against
+  plugin-set/      the plugins of this build (written by plugins/assemble)
 shell/             see docs/SHELL.md
+plugins/           movies, arr, crypto, and assemble, which picks those of a build
 docs/
   PROTOCOL.md      every topic, method, event and setting
   SHELL.md         how the UI is written, and how to try it
+  PLUGINS.md       how a plugin is written and installed
 nix/               the package, its wrapper and the Home Manager module
 dev/               sandbox daemon, the shell in a window, headless screenshots
 ```
 
 Every daemon module has the same shape — `run()` publishes its topics,
-`call()` answers its methods — and every part of the UI follows the handful of
-rules in [docs/SHELL.md](docs/SHELL.md).
+`call()` answers its methods — and so does every plugin; every part of the UI
+follows the handful of rules in [docs/SHELL.md](docs/SHELL.md).
 
 `dev/daemon start` runs the daemon in a sandbox (`.sandbox/home`) that watches
 your running session but cannot change it. `dev/window` shows the shell in a

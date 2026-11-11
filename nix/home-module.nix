@@ -1,7 +1,8 @@
 # Home Manager module: `programs.fableland`.
 #
-# Installs Fableland with the programs of the features that are on, and writes
-# ~/.config/fableland/managed.json — the settings the daemon treats as fixed.
+# Installs Fableland with the plugins chosen and the programs of the features
+# that are on, and writes ~/.config/fableland/managed.json — the settings the
+# daemon treats as fixed.
 # Starting the daemon is left to the Hyprland configuration (see the README).
 {
   config,
@@ -24,13 +25,44 @@ in
       type = lib.types.package;
       default = pkgs.callPackage ./package.nix { };
       defaultText = lib.literalExpression "pkgs.callPackage ./package.nix { }";
-      description = "The daemon and the shell, without the programs they use.";
+      description = "The daemon and the shell, without the programs they use. Built again with {option}`plugins`.";
     };
 
     finalPackage = lib.mkOption {
       type = lib.types.package;
       readOnly = true;
-      description = "What is installed: {option}`package` with Quickshell and the programs of the features that are on.";
+      description = "What is installed: {option}`package` with the plugins, Quickshell and the programs of the features that are on.";
+    };
+
+    plugins = lib.mkOption {
+      type = lib.types.listOf (
+        lib.types.oneOf [
+          lib.types.str
+          lib.types.path
+          lib.types.package
+          (lib.types.attrsOf lib.types.anything)
+        ]
+      );
+      default = [ "movies" ];
+      example = lib.literalExpression ''
+        [
+          "movies"
+          "arr"                                  # plugins that come with Fableland, by name
+          inputs.fable-thing                     # a flake input (flake = false is enough)
+          ./my-plugin                            # a folder
+          { github = "someone/fable-weather2"; rev = "3f9c2e1…"; hash = "sha256-…"; }
+          { src = inputs.more; dir = "plugins/x"; runtimeInputs = [ pkgs.jq ]; }
+        ]
+      '';
+      description = ''
+        The plugins compiled into Fableland (see docs/PLUGINS.md). Each is
+        named by its name when it comes with Fableland, or by its folder:
+        a path, a flake input, a package, `{ github, rev, hash }` to fetch one
+        pinned by its hash, or `{ src }`. The last two also take `dir`, a
+        subfolder, and `runtimeInputs`, programs the plugin runs. A plugin's
+        settings are under its name in {option}`settings`; one in the list can
+        still be switched off at runtime as the feature named after it.
+      '';
     };
 
     features = lib.mapAttrs (
@@ -50,6 +82,7 @@ in
           terminal = "kitty";
           workspaceCount = 10;
           wallpaper.dir = "~/Pictures/Wallpapers";
+          arr.sonarr = { url = "http://localhost:8989"; apiKeyFile = "/run/secrets/sonarr"; };
           keybinds = [
             { keys = "SUPER + V"; action = "fable"; command = "toggle clipboard"; }
           ];
@@ -73,7 +106,7 @@ in
   config = lib.mkIf cfg.enable {
     programs.fableland.finalPackage = pkgs.callPackage ./wrapped.nix {
       fableland-unwrapped = cfg.package;
-      inherit (cfg) features;
+      inherit (cfg) features plugins;
     };
 
     home.packages = [ cfg.finalPackage ] ++ lib.optional cfg.fonts pkgs.nerd-fonts.jetbrains-mono;

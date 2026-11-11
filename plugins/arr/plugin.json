@@ -1,0 +1,35 @@
+{
+  "name": "arr",
+  "title": "Sonarr & Radarr",
+  "short": "Arr",
+  "icon": "󰇚",
+  "about": "Request a series from Sonarr or a film from Radarr, right from a title's page in Movies.",
+  "version": "1.0.0",
+  "settings": {
+    "sonarr": {
+      "url": "",
+      "apiKey": "",
+      "apiKeyFile": "",
+      "qualityProfile": "",
+      "rootFolder": ""
+    },
+    "radarr": {
+      "url": "",
+      "apiKey": "",
+      "apiKeyFile": "",
+      "qualityProfile": "",
+      "rootFolder": ""
+    },
+    "search": true
+  },
+  "readOnly": [
+    "lookup",
+    "test"
+  ],
+  "shell": {
+    "settings": "Settings.qml",
+    "slots": {
+      "movies.details.actions": "Request.qml"
+    }
+  }
+}

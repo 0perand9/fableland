@@ -1,0 +1,26 @@
+# The daemon, the interface its plugins are written against, and the plugins.
+#
+#   daemon/             `fable`
+#   daemon/api/         `fable-plugin`: everything a plugin may use
+#   daemon/plugin-set/  which plugins this build includes — written by plugins/assemble
+#   plugins/<name>/     one plugin each (see docs/PLUGINS.md)
+[workspace]
+resolver = "2"
+# The plugins the plugin set depends on are members too, by being path dependencies.
+members = ["daemon", "daemon/api", "daemon/plugin-set"]
+default-members = ["daemon"]
+
+[workspace.package]
+edition = "2021"
+
+[workspace.dependencies]
+fable-plugin = { path = "daemon/api" }
+
+# Dependencies do the heavy lifting (image decoding, sqlite); keep them fast in dev builds too.
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true

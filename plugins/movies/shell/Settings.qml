@@ -1,5 +1,6 @@
 import QtQuick
 import qs.core
+import qs.popups.settings
 
 SettingsPage {
     Section {

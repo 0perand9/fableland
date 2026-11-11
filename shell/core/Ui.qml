@@ -10,7 +10,8 @@ Singleton {
 
     // Every popup has a file popups/<Name>.qml with the first letter capitalised.
     // One that is a feature (Daemon.has) carries the feature's name, and is not here while that is off.
-    readonly property var popups: ["launcher", "clipboard", "wallpaper", "calendar", "music", "network", "volume", "control", "focus", "monitors", "settings", "guide", "updates", "movies", "assistant"].filter(name => Daemon.has(name))
+    // A plugin's popup goes by the plugin's name (core/Plugins.qml).
+    readonly property var popups: ["launcher", "clipboard", "wallpaper", "calendar", "music", "network", "volume", "control", "focus", "monitors", "settings", "guide", "updates", "assistant"].filter(name => Daemon.has(name)).concat(Plugins.popups)
     // Overlays that open and toggle like popups but look after themselves:
     // each listens for `overlay` with its own name.
     readonly property var overlays: ["quick"].filter(name => Daemon.has(name))
@@ -79,7 +80,7 @@ Singleton {
     }
 
     function fileFor(name) {
-        return Qt.resolvedUrl("../popups/" + name.charAt(0).toUpperCase() + name.slice(1) + ".qml");
+        return Plugins.popupFile(name) || Qt.resolvedUrl("../popups/" + name.charAt(0).toUpperCase() + name.slice(1) + ".qml");
     }
 
     onLockedChanged: if (locked) close()

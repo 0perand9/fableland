@@ -12,7 +12,7 @@ logfile="$ROOT/.sandbox/daemon.log"
 running() { [ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null; }
 
 build() {
-    cd "$ROOT/daemon"
+    cd "$ROOT"
     # On NixOS a rustup toolchain cannot link; borrow the compiler from nixpkgs instead.
     if command -v nix >/dev/null; then
         nix shell nixpkgs#rustc nixpkgs#cargo nixpkgs#gcc -c cargo build

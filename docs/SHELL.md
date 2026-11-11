@@ -118,6 +118,7 @@ Motion: `Theme.fast` (120 ms, hover), `Theme.normal` (220 ms, state changes),
 | `List`, `Scroll`, `Scroller` | list view, scroll area, scroll indicator |
 | `KeyedModel`, `Want`, `MediaClock` | stable models from topic arrays, on-demand topics, playback position |
 | `PopupPage` | the root of a popup |
+| `Slot` | a place plugins can fill (see [Plugins](#plugins)) |
 
 `Toggle`, `Tabs` and `Slide` never change themselves: bind their value to state
 and change the state in their signal handler.
@@ -156,6 +157,25 @@ A failed call the user should know about becomes a toast: `Daemon.toast("error",
 An overlay that opens on command (the quick panel) is named in `Ui.overlays`
 instead. `Ui.open`/`Ui.toggle` — and so `fable toggle quick` — reach it through
 the `Ui.overlay(name, action, arg)` signal; how it shows itself is its own business.
+
+## Plugins
+
+A plugin's QML lives in its own folder, `plugins/<name>/shell/`, which
+`plugins/assemble` links (or copies) to `shell/plugins/<name>`, so it imports
+`qs.core`, `qs.widgets` and the rest like any file here, and its own files as
+`qs.plugins.<name>`. `core/Plugins.qml` reads what each plugin adds from the
+`plugins` topic: a popup (opened by the plugin's name), something in the bar, a
+Settings page, and components for **slots**.
+
+A slot is a place the shell leaves open: `Slot { name: "…"; context: … }`
+puts there whatever plugins name for that slot, each given `context`.
+
+| slot | where | context |
+| --- | --- | --- |
+| `bar` | the bar, left of the tray (plugin.json names it `shell.bar`) | `{ screen }` |
+| `movies.details.actions` | beside a title's Open button in Movies (a plugin's slot) | `{ title, details, hue }` |
+
+A plugin's own topic is `Daemon.topic("<name>", fallback)`. Writing one: [PLUGINS.md](PLUGINS.md).
 
 ## Backdrops
 
