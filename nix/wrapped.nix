@@ -2,7 +2,7 @@
 # features and those its plugins ask for on PATH — appended, so the versions in
 # your profile win. A feature that is switched off brings nothing:
 #
-#   fableland.override { features.capture = false; plugins = [ "movies" "arr" ]; }
+#   fableland.override { features.capture = false; plugins = [ inputs.fable-movies ]; }
 #
 # `features` only decides what is installed; what is switched on is a setting
 # (`features` in settings.json, or managed.json — which the Home Manager module
@@ -16,7 +16,7 @@
   makeWrapper,
   fableland-unwrapped,
   features ? { },
-  plugins ? [ "movies" ],
+  plugins ? [ ],
 }:
 
 let

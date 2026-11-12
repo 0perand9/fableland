@@ -4,3 +4,7 @@
 *.qsb
 .sandbox/
 __pycache__/
+
+# Plugins linked or copied in by plugins/assemble: they live in their own repositories.
+/plugins/*
+!/plugins/assemble

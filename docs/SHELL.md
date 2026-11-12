@@ -173,7 +173,9 @@ puts there whatever plugins name for that slot, each given `context`.
 | slot | where | context |
 | --- | --- | --- |
 | `bar` | the bar, left of the tray (plugin.json names it `shell.bar`) | `{ screen }` |
-| `movies.details.actions` | beside a title's Open button in Movies (a plugin's slot) | `{ title, details, hue }` |
+
+Plugins offer slots of their own (fable-movies has two, for buttons on a
+title's page and badges on its poster); their READMEs list them.
 
 A plugin's own topic is `Daemon.topic("<name>", fallback)`. Writing one: [PLUGINS.md](PLUGINS.md).
 

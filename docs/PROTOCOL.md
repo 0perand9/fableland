@@ -302,7 +302,7 @@ Seconds everywhere. With `app` (a class) the numbers are for that application on
 
 **updates** — `updates.check`, `updates.run` (opens a terminal running the update command).
 
-**Plugins** answer `<plugin>.<method>`; each plugin's README lists its methods (`plugins/movies/README.md`, …).
+**Plugins** answer `<plugin>.<method>`; each plugin's README lists its methods.
 
 **misc** — `misc.open {target}` (xdg-open a path or URL), `misc.sound {name}`, `misc.sysinfo`,
 `misc.image {url}` → local path of the picture, downloaded into the cache and converted to JPEG if Qt might not read it (`RemoteImage` widget),

@@ -43,12 +43,10 @@ in
           (lib.types.attrsOf lib.types.anything)
         ]
       );
-      default = [ "movies" ];
+      default = [ ];
       example = lib.literalExpression ''
         [
-          "movies"
-          "arr"                                  # plugins that come with Fableland, by name
-          inputs.fable-thing                     # a flake input (flake = false is enough)
+          inputs.fable-movies                    # a flake input (flake = false is enough)
           ./my-plugin                            # a folder
           { github = "someone/fable-weather2"; rev = "3f9c2e1…"; hash = "sha256-…"; }
           { src = inputs.more; dir = "plugins/x"; runtimeInputs = [ pkgs.jq ]; }
@@ -56,7 +54,7 @@ in
       '';
       description = ''
         The plugins compiled into Fableland (see docs/PLUGINS.md). Each is
-        named by its name when it comes with Fableland, or by its folder:
+        named by its folder, or by its name when it is in Fableland's plugins/:
         a path, a flake input, a package, `{ github, rev, hash }` to fetch one
         pinned by its hash, or `{ src }`. The last two also take `dir`, a
         subfolder, and `runtimeInputs`, programs the plugin runs. A plugin's

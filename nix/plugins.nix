@@ -1,7 +1,7 @@
 # The ways a plugin can be named, in `programs.fableland.plugins` and in the
 # package's `plugins` argument, made into { src, runtimeInputs }:
 #
-#   "movies"                                      a plugin in Fableland's plugins/
+#   "hello"                                       a plugin in Fableland's plugins/
 #   ./my-plugin   inputs.fable-thing   a package   a plugin's folder
 #   { github = "owner/repo"; rev = "…"; hash = "sha256-…"; }
 #                                                 fetched from GitHub, pinned by its hash

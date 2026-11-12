@@ -69,16 +69,16 @@ screen wants it.
 
 Plugins are compiled into the daemon and the shell, with the same reach as
 their own parts: a plugin can add a popup, something to the bar, a Settings
-page, or buttons in a place another part leaves open. Three come with
-Fableland:
+page, or buttons in a place another part leaves open. None come built in;
+these live in their own repositories:
 
 | | |
 | --- | --- |
-| [**movies**](plugins/movies) | browse a film/series catalogue and open a title on the site of your choice (on by default) |
-| [**arr**](plugins/arr) | request a title from Sonarr or Radarr, right from its page in movies |
-| [**crypto**](plugins/crypto) | coin prices in the bar |
+| [**movies**](https://github.com/0perand9/fable-movies) | browse a film/series catalogue and open a title on the site of your choice |
+| [**arr**](https://github.com/0perand9/fable-arr) | Sonarr and Radarr in movies: badges on what is in your library, and a request button |
+| [**crypto**](https://github.com/0perand9/fable-crypto) | coin prices in the bar |
 
-Others can come from anywhere: a folder, a flake input, or a GitHub repository
+They and others can come from anywhere: a folder, a flake input, or a GitHub repository
 pinned by its hash. They are trusted like the rest of your configuration, so
 read one before you add it. [docs/PLUGINS.md](docs/PLUGINS.md) covers writing
 and installing them.
@@ -111,6 +111,8 @@ inputs.fableland = {
   url = "github:0perand9/fableland";
   inputs.nixpkgs.follows = "nixpkgs";
 };
+inputs.fable-movies = { url = "github:0perand9/fable-movies"; flake = false; };
+inputs.fable-arr = { url = "github:0perand9/fable-arr"; flake = false; };
 
 # home configuration
 imports = [ inputs.fableland.homeModules.default ];
@@ -118,7 +120,7 @@ imports = [ inputs.fableland.homeModules.default ];
 programs.fableland = {
   enable = true;
   features.weather = false;
-  plugins = [ "movies" "arr" ];
+  plugins = [ inputs.fable-movies inputs.fable-arr ];
   settings = {
     terminal = "kitty";
     wallpaper.dir = "~/Pictures/Wallpapers";
@@ -130,7 +132,8 @@ programs.fableland = {
 **Without Nix**
 
 ```sh
-plugins/assemble movies          # the plugins to build in (none named: all of them); needs jq
+git clone https://github.com/0perand9/fable-movies plugins/movies   # plugins to build in
+plugins/assemble                 # builds in those in plugins/; needs jq
 cargo build --release
 dev/shaders                      # compiles the backdrop patterns; needs Qt's qsb (qtshadertools)
 ./target/release/fable daemon    # finds shell/ on its own when run from the source tree
@@ -216,7 +219,7 @@ daemon/
   api/             fable-plugin: what a plugin is written against
   plugin-set/      the plugins of this build (written by plugins/assemble)
 shell/             see docs/SHELL.md
-plugins/           movies, arr, crypto, and assemble, which picks those of a build
+plugins/           assemble, which picks the plugins of a build; plugin checkouts go here (ignored by git)
 docs/
   PROTOCOL.md      every topic, method, event and setting
   SHELL.md         how the UI is written, and how to try it

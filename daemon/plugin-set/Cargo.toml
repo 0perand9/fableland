@@ -7,6 +7,3 @@ publish = false
 
 [dependencies]
 fable-plugin.workspace = true
-fable-arr = { path = "../../plugins/arr" }
-fable-crypto = { path = "../../plugins/crypto" }
-fable-movies = { path = "../../plugins/movies" }

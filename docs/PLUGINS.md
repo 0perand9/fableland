@@ -7,13 +7,14 @@ modules. Nothing keeps a plugin in a box, so install the ones you trust:
 read a plugin before you add it, and pin it (see [Installing](#installing)) so
 that the code you read is the code you run.
 
-Three come with Fableland, in `plugins/`:
+None come with Fableland itself. These three live in their own repositories
+and make good examples:
 
 | plugin | what it does | shows how to |
 | --- | --- | --- |
-| [`movies`](../plugins/movies) | a film and series catalogue | add a popup and a Settings page, offer a slot |
-| [`arr`](../plugins/arr) | request a title from Sonarr or Radarr | fill another plugin's slot, talk to a web API |
-| [`crypto`](../plugins/crypto) | coin prices in the bar | run a task, publish a topic, add to the bar |
+| [`movies`](https://github.com/0perand9/fable-movies) | a film and series catalogue | add a popup and a Settings page, offer a slot |
+| [`arr`](https://github.com/0perand9/fable-arr) | Sonarr and Radarr in movies | fill another plugin's slot, talk to a web API |
+| [`crypto`](https://github.com/0perand9/fable-crypto) | coin prices in the bar | run a task, publish a topic, add to the bar |
 
 ## What a plugin is
 
@@ -143,12 +144,15 @@ daemon publishes anyway, say.
 `shell/plugins/` (their QML):
 
 ```sh
-plugins/assemble                     # every plugin in plugins/ (what the repository has)
-plugins/assemble movies arr          # just these
+plugins/assemble                     # every plugin in plugins/
+plugins/assemble hello               # just these, by name
 plugins/assemble ~/src/fable-hello   # a plugin from elsewhere: copied into plugins/
+plugins/assemble --none              # none (what the repository has)
 cargo build
 ```
 
+`plugins/` is ignored by Fableland's git (but for `assemble`), so a plugin can
+live there as its own checkout: `git clone https://github.com/0perand9/fable-movies plugins/movies`.
 Writing one, work in `plugins/<name>/`, run `plugins/assemble`, and try it with
 `dev/daemon` and `dev/window` (SHELL.md, "Trying it"): QML reloads as you save,
 and `dev/daemon build && dev/daemon restart` brings in new code.
@@ -163,8 +167,6 @@ inputs.fable-hello = { url = "github:someone/fable-hello"; flake = false; };
 
 # home configuration
 programs.fableland.plugins = [
-  "movies"                                                           # comes with Fableland
-  "arr"
   inputs.fable-hello                                                 # pinned by flake.lock
   { github = "someone/fable-weather2"; rev = "3f9c2e1…"; hash = "sha256-…"; }
   { src = ./my-plugins; dir = "clock"; runtimeInputs = [ pkgs.jq ]; }
@@ -177,7 +179,7 @@ A flake input is pinned by `flake.lock`; `{ github, rev, hash }` by its hash
 (leave `hash = ""` once, and the build fails with the right one). Either way a
 rebuild never brings code you have not seen: updating is `nix flake update
 fable-hello`, or a new `rev` and `hash`. `runtimeInputs` puts programs the
-plugin runs on fable's PATH. The default is `[ "movies" ]`.
+plugin runs on fable's PATH. The default is no plugins.
 
 The package takes the same list: `fableland.override { plugins = [ … ]; }`.
 

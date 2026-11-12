@@ -253,27 +253,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fable-arr"
-version = "1.0.0"
-dependencies = [
- "fable-plugin",
-]
-
-[[package]]
-name = "fable-crypto"
-version = "1.0.0"
-dependencies = [
- "fable-plugin",
-]
-
-[[package]]
-name = "fable-movies"
-version = "1.0.0"
-dependencies = [
- "fable-plugin",
-]
-
-[[package]]
 name = "fable-plugin"
 version = "1.0.0"
 dependencies = [
@@ -291,9 +270,6 @@ dependencies = [
 name = "fable-plugin-set"
 version = "0.0.0"
 dependencies = [
- "fable-arr",
- "fable-crypto",
- "fable-movies",
  "fable-plugin",
 ]
 

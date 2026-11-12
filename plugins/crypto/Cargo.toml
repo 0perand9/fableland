@@ -1,8 +1,0 @@
-[package]
-name = "fable-crypto"
-version = "1.0.0"
-edition.workspace = true
-description = "Fableland plugin: coin prices in the bar"
-
-[dependencies]
-fable-plugin.workspace = true

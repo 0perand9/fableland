@@ -11,7 +11,7 @@
   jq,
   sqlite,
   qt6,
-  plugins ? [ "movies" ],
+  plugins ? [ ],
 }:
 
 let
