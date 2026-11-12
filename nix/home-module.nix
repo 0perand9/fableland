@@ -2,7 +2,8 @@
 #
 # Installs Fableland with the plugins chosen and the programs of the features
 # that are on, and writes ~/.config/fableland/managed.json — the settings the
-# daemon treats as fixed.
+# daemon treats as fixed. A switch that brings a different build restarts the
+# running daemon and shell on it (restartOnSwitch).
 # Starting the daemon is left to the Hyprland configuration (see the README).
 {
   config,
@@ -99,6 +100,17 @@ in
       default = true;
       description = "Whether to install the font the shell draws its text and icons with (JetBrainsMono Nerd Font).";
     };
+
+    restartOnSwitch = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Whether a switch that brings a different build of Fableland (a new
+        version, other plugins or features) restarts the running daemon and
+        shell on it at once. Off: they keep the old build until `fable restart`
+        or the next login.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -114,6 +126,29 @@ in
     # for a change of features it restarts itself.
     xdg.configFile."fableland/managed.json".source = json.generate "fableland-managed.json" (
       lib.recursiveUpdate cfg.settings { inherit (cfg) features; }
+    );
+
+    # The daemon restarts by running its command line again, which names the
+    # profile (`fable daemon`): so `fable restart` comes back as the build just
+    # installed. A note of the build the last switch installed tells whether
+    # this one brings another; the same build leaves the shell alone.
+    home.activation.fablelandRestart = lib.mkIf cfg.restartOnSwitch (
+      lib.hm.dag.entryAfter [ "writeBoundary" "installPackages" "linkGeneration" ] ''
+        fablelandBuild=${cfg.finalPackage}
+        fablelandNote="${config.xdg.stateHome}/fableland/installed-build"
+        if [[ "$(cat "$fablelandNote" 2>/dev/null)" != "$fablelandBuild" ]]; then
+          # Activation runs outside the session; the daemon's socket is in the user's runtime directory.
+          export XDG_RUNTIME_DIR="''${XDG_RUNTIME_DIR:-/run/user/$UID}"
+          if [[ -S "$XDG_RUNTIME_DIR/fableland/fable.sock" ]]; then
+            verboseEcho "Restarting Fableland on the new build"
+            run $fablelandBuild/bin/fable restart || warnEcho "Fableland could not be restarted; run fable restart"
+          fi
+          run mkdir -p "$(dirname "$fablelandNote")"
+          if [[ ! -v DRY_RUN ]]; then
+            echo "$fablelandBuild" > "$fablelandNote"
+          fi
+        fi
+      ''
     );
   };
 }
