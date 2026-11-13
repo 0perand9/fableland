@@ -26,7 +26,7 @@ COMMANDS
   brightness <+N|-N|N>
   media <play-pause|next|prev>
   workspace <N>
-  capture <region|full|edit|ocr|qr|record|stop>
+  capture <region|full|edit|ocr|qr|record|stop>   (also: toggle capture [mode])
   wallpaper <next|prev|random|PATH>
   dnd [on|off]
   reload                        restart the UI

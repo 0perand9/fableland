@@ -38,6 +38,11 @@ fn show(action: &str, target: &str, arg: &str) -> Result<()> {
     Ok(())
 }
 
+/// Start a capture; the overlay closes again if it is already up.
+async fn capture(mode: &str) -> Result<Value> {
+    dispatch("capture.start", &json!({ "mode": if mode.is_empty() { "region" } else { mode } })).await
+}
+
 /// `+5`, `-5` and `40` style arguments: relative change or absolute value.
 fn level(arg: &str) -> Result<(bool, f64)> {
     let relative = arg.starts_with('+') || arg.starts_with('-');
@@ -53,6 +58,10 @@ pub async fn command(args: &[String]) -> Result<Value> {
         "toggle" | "open" => {
             if arg(1).is_empty() {
                 bail!("usage: fable {} <popup> [arg]", arg(0));
+            }
+            // The capture overlay is no popup, but it is opened and closed like one.
+            if arg(1) == "capture" {
+                return capture(arg(2)).await;
             }
             show(arg(0), arg(1), arg(2))?;
         }
@@ -83,7 +92,7 @@ pub async fn command(args: &[String]) -> Result<Value> {
             return dispatch(method, &Value::Null).await;
         }
         "workspace" => return dispatch("hypr.workspace", &json!({ "id": arg(1).parse::<i64>().map_err(|_| anyhow!("workspace needs a number"))? })).await,
-        "capture" => return dispatch("capture.start", &json!({ "mode": if arg(1).is_empty() { "region" } else { arg(1) } })).await,
+        "capture" => return capture(arg(1)).await,
         "wallpaper" => {
             return match arg(1) {
                 "next" | "prev" | "random" => dispatch("wallpaper.cycle", &json!({ "direction": arg(1) })).await,

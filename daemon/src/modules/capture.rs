@@ -1,8 +1,9 @@
 //! Screenshots and screen recording (`capture` topic).
 //!
-//! Region screenshots work on a frozen frame: the monitor is grabbed first, the
-//! UI lets the user select on that still image, and the selection is cropped out
-//! of it here. What you select is exactly what you get, menus and tooltips included.
+//! Region screenshots work on frozen frames: every monitor is grabbed first, the
+//! UI lets the user select on those still images, and the selection is cropped
+//! out of the frame of the monitor it was made on. What you select is exactly
+//! what you get, menus and tooltips included.
 
 use super::notif::{self, Note};
 use crate::util::Params;
@@ -42,8 +43,20 @@ fn editor() -> Option<&'static str> {
     ["satty", "swappy"].into_iter().filter(|e| util::which(e)).max_by_key(|e| *e == preferred)
 }
 
-fn freeze_file() -> PathBuf {
-    util::dirs().run.join("freeze.ppm")
+/// Where the frozen frame of a monitor is kept while the user selects.
+fn freeze_file(monitor: &str) -> PathBuf {
+    util::dirs().run.join(format!("freeze-{monitor}.ppm"))
+}
+
+fn forget_frozen() {
+    let Ok(entries) = std::fs::read_dir(&util::dirs().run) else { return };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if name.starts_with("freeze-") && name.ends_with(".ppm") {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
 }
 
 fn stamp() -> String {
@@ -54,6 +67,16 @@ fn out_dir(setting: &str) -> Result<PathBuf> {
     let dir = util::expand(&d().settings.str(setting));
     std::fs::create_dir_all(&dir).with_context(|| format!("cannot create {}", dir.display()))?;
     Ok(dir)
+}
+
+/// The names of the monitors a selection can be made on: the one named, or all of them.
+fn selectable(on: Option<&str>) -> Vec<String> {
+    let monitors = d().hub.get("monitors").unwrap_or(Value::Null);
+    let all = monitors.as_array().map(|list| list.iter().filter_map(|m| m["name"].as_str()).map(String::from).collect()).unwrap_or_default();
+    match on {
+        Some(n) if !n.is_empty() => vec![n.to_string()],
+        _ => all,
+    }
 }
 
 /// The monitor the pointer/focus is on, from the `monitors` topic.
@@ -133,7 +156,7 @@ async fn finish(png: Vec<u8>, action: &str) -> Result<()> {
 }
 
 /// Begin a capture: grab the frame and hand over to the selection overlay, or shoot directly.
-/// `on` names the monitor; without it the focused one is taken.
+/// `on` names the monitor; without it every monitor can be selected on, the focused one first.
 async fn start(mode: &str, on: Option<&str>) -> Result<()> {
     match mode {
         "stop" => return stop_recording().await,
@@ -145,7 +168,7 @@ async fn start(mode: &str, on: Option<&str>) -> Result<()> {
                 bail!("install wf-recorder to record the screen");
             }
             let m = monitor(on)?;
-            d().hub.emit("capture", &json!({ "mode": "record", "monitor": m["name"], "image": "" }));
+            d().hub.emit("capture", &json!({ "mode": "record", "monitor": m["name"], "monitors": selectable(on) }));
             return Ok(());
         }
         _ => {}
@@ -169,22 +192,29 @@ async fn start(mode: &str, on: Option<&str>) -> Result<()> {
         }
         return finish(png.stdout, "copy").await;
     }
-    // Uncompressed PPM: grabbing must be instant, and the file lives on tmpfs anyway.
-    let freeze = freeze_file();
-    util::run("grim", &["-t", "ppm", "-o", &name, &freeze.to_string_lossy()]).await?;
+    // All monitors at the same moment. Uncompressed PPM: grabbing must be
+    // instant, and the files live on tmpfs anyway.
+    forget_frozen();
+    let monitors = selectable(on);
+    let grabs = monitors.iter().map(|output| {
+        let file = freeze_file(output).to_string_lossy().into_owned();
+        async move { util::run("grim", &["-t", "ppm", "-o", output, &file]).await.map(|_| (output.clone(), file)) }
+    });
+    let images: serde_json::Map<String, Value> = futures_util::future::try_join_all(grabs).await?.into_iter().map(|(output, file)| (output, json!(file))).collect();
     let action = if matches!(mode, "edit" | "ocr" | "qr") { mode } else { "copy" };
-    d().hub.emit("capture", &json!({ "mode": "image", "action": action, "monitor": name, "image": freeze.to_string_lossy(), "stamp": util::now_ms() }));
+    d().hub.emit("capture", &json!({ "mode": "image", "action": action, "monitor": name, "images": images, "stamp": util::now_ms() }));
     Ok(())
 }
 
-/// Crop the frozen frame. Coordinates are in the overlay's units; `viewWidth` is
-/// the overlay's width, which gives the factor to physical pixels.
+/// Crop the frozen frame of `monitor`. Coordinates are in the overlay's units;
+/// `viewWidth` is the overlay's width, which gives the factor to physical pixels.
 async fn shot(p: &Value) -> Result<()> {
+    let frozen = freeze_file(p.str("monitor")?);
     let (x, y, w, h) = (p.num("x")?, p.num("y")?, p.num("w")?, p.num("h")?);
     let view_width = p.num("viewWidth")?.max(1.0);
     let action = p.str_or("action", "copy").to_string();
     let png = tokio::task::spawn_blocking(move || -> Result<Vec<u8>> {
-        let frame = image::open(freeze_file()).context("the frozen frame is gone")?.to_rgb8();
+        let frame = image::open(frozen).context("the frozen frame is gone")?.to_rgb8();
         let scale = frame.width() as f64 / view_width;
         let px = |v: f64| (v * scale).round().max(0.0) as u32;
         let (cx, cy) = (px(x).min(frame.width().saturating_sub(1)), px(y).min(frame.height().saturating_sub(1)));
@@ -192,7 +222,7 @@ async fn shot(p: &Value) -> Result<()> {
         encode_png(&image::imageops::crop_imm(&frame, cx, cy, cw, ch).to_image())
     })
     .await??;
-    let _ = std::fs::remove_file(freeze_file());
+    forget_frozen();
     finish(png, &action).await
 }
 
@@ -282,9 +312,7 @@ pub async fn call(name: &str, p: &Value) -> Result<Value> {
         "shot" => shot(p).await?,
         "record" => record(p).await?,
         "stop" => stop_recording().await?,
-        "cancel" => {
-            let _ = std::fs::remove_file(freeze_file());
-        }
+        "cancel" => forget_frozen(),
         _ => bail!("unknown method capture.{name}"),
     }
     Ok(Value::Null)

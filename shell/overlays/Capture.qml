@@ -5,8 +5,11 @@ import qs.core
 import qs.overlays.capture
 
 // Choosing what to capture. The daemon announces a capture with a `capture`
-// event — a frozen frame of a monitor to cut a screenshot from, or a request
+// event — frozen frames of the monitors to cut a screenshot from, or a request
 // to mark an area for recording — and this overlay answers with the selection.
+// It covers every monitor; the selection is on one of them at a time, the
+// `active` one, which starts as the focused monitor and changes with a drag
+// on another.
 Scope {
     id: root
 
@@ -14,6 +17,10 @@ Scope {
     property var request: ({})
     // The overlay is up.
     property bool selecting: false
+    // The monitor the selection is on, which has the keyboard and the toolbar.
+    property string active: ""
+    // The monitors to cover: those the request names that are connected.
+    readonly property var covered: selecting ? (request.monitors ?? [request.monitor]).filter(name => Quickshell.screens.some(s => s.name === name)) : []
     // The area last used on each monitor, offered again the next time.
     property var remembered: ({})
 
@@ -31,6 +38,7 @@ Scope {
 
     function open(request) {
         root.request = request;
+        active = request.monitor ?? "";
         selecting = true;
     }
 
@@ -41,7 +49,7 @@ Scope {
 
     function remember(area) {
         // A copy: the rectangle handed in belongs to an overlay that is about to go.
-        remembered[request.monitor] = Qt.rect(area.x, area.y, area.width, area.height);
+        remembered[active] = Qt.rect(area.x, area.y, area.width, area.height);
     }
 
     // An area of the overlay in whole units, as the daemon wants it.
@@ -50,12 +58,12 @@ Scope {
     }
 
     function shoot(area, viewWidth, action) {
-        Daemon.send("capture.shot", Object.assign({ viewWidth: viewWidth, action: action }, geometry(area)));
+        Daemon.send("capture.shot", Object.assign({ monitor: active, viewWidth: viewWidth, action: action }, geometry(area)));
         selecting = false;
     }
 
     function record(area, audio) {
-        afterClosing.send("capture.record", Object.assign({ monitor: request.monitor, audio: audio }, geometry(area)));
+        afterClosing.send("capture.record", Object.assign({ monitor: active, audio: audio }, geometry(area)));
         selecting = false;
     }
 
@@ -72,8 +80,12 @@ Scope {
     // Development preview (FABLE_DEV_OPEN=capture or capture:record): as if the daemon had asked.
     function preview() {
         const mode = { "capture": "image", "capture:record": "record" }[Ui.dev];
-        if (mode && Daemon.ready)
-            open({ mode: mode, action: "copy", monitor: Quickshell.screens[0]?.name ?? "", image: Daemon.wallpaper.current.image ?? "", stamp: Date.now() });
+        if (!mode || !Daemon.ready)
+            return;
+        const names = Quickshell.screens.map(s => s.name), images = {};
+        for (const name of names)
+            images[name] = Daemon.wallpaper.current.image ?? "";
+        open({ mode: mode, action: "copy", monitor: names[0] ?? "", monitors: names, images: images, stamp: Date.now() });
     }
 
     Component.onCompleted: preview()
@@ -127,11 +139,14 @@ Scope {
         onTriggered: Daemon.send(pending.method, pending.params)
     }
 
-    LazyLoader {
-        active: root.selecting
+    Variants {
+        model: root.covered
 
         PanelWindow {
             id: overlay
+
+            required property string modelData
+            readonly property bool active: root.active === modelData
 
             readonly property bool recording: root.request.mode === "record"
             readonly property color hue: recording ? Theme.red : Theme.accent
@@ -143,7 +158,7 @@ Scope {
             // Real pixels per unit of the overlay.
             readonly property real pixelRatio: {
                 if (recording)
-                    return Daemon.monitors.find(m => m.name === root.request.monitor)?.scale ?? 1;
+                    return Daemon.monitors.find(m => m.name === modelData)?.scale ?? 1;
                 return frozen.status === Image.Ready && width > 0 ? frozen.implicitWidth / width : 1;
             }
 
@@ -167,7 +182,7 @@ Scope {
                 root.switchMode();
             }
 
-            screen: Ui.screenNamed(root.request.monitor ?? "")
+            screen: Ui.screenNamed(modelData)
             anchors {
                 top: true
                 bottom: true
@@ -178,11 +193,17 @@ Scope {
             color: "transparent"
             WlrLayershell.layer: WlrLayer.Overlay
             WlrLayershell.namespace: "fableland-capture"
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+            WlrLayershell.keyboardFocus: active ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
             Component.onCompleted: {
                 choice = recording ? Daemon.setting("capture.audio", "desktop") : (root.request.action ?? "copy");
-                selection.set(root.remembered[root.request.monitor] ?? Qt.rect(0, 0, 0, 0));
+                if (active)
+                    selection.set(root.remembered[modelData] ?? Qt.rect(0, 0, 0, 0));
                 view.gliding = true;
+            }
+            // One selection at a time: the monitor that loses it lets it go.
+            onActiveChanged: {
+                if (!active)
+                    selection.set(Qt.rect(0, 0, 0, 0));
             }
 
             // The frozen frame the screenshot is cut from. Every frame is written
@@ -192,7 +213,7 @@ Scope {
 
                 anchors.fill: parent
                 visible: !overlay.recording
-                source: overlay.recording ? "" : Fmt.file(root.request.image ?? "") + "?" + root.request.stamp
+                source: overlay.recording ? "" : Fmt.file(root.request.images?.[overlay.modelData] ?? "") + "?" + root.request.stamp
                 cache: false
                 asynchronous: true
             }
@@ -204,13 +225,19 @@ Scope {
                 // before the window has been given its own.
                 boundsWidth: overlay.screen?.width ?? 0
                 boundsHeight: overlay.screen?.height ?? 0
+
+                // A drag here takes the selection over from another monitor.
+                onDraggingChanged: {
+                    if (dragging)
+                        root.active = overlay.modelData;
+                }
             }
 
             SelectionView {
                 id: view
 
                 anchors.fill: parent
-                focus: true
+                focus: overlay.active
                 selection: selection
                 hue: overlay.hue
                 pixelRatio: overlay.pixelRatio

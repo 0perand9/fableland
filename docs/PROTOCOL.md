@@ -226,8 +226,8 @@ Today's `focus.stats` (below), refreshed every 3 s.
 | `toast` | `{ kind: "info"\|"success"\|"error", title, body }` | a short message from the daemon |
 | `notif.new` | a notification (as in `notif.items`) | pop it up (not sent while do-not-disturb, unless critical) |
 | `notif.closed` | `{ id }` | hide its pop-up |
-| `capture` | `{ mode: "image", action, monitor, image, stamp }` | a frozen frame of `monitor` is at `image`: let the user select a region, then call `capture.shot` |
-| `capture` | `{ mode: "record", monitor }` | let the user select a region to record, then call `capture.record` |
+| `capture` | `{ mode: "image", action, monitor, images: { "<monitor>": path }, stamp }` | frozen frames of the monitors are at `images`: let the user select a region on one of them (starting on `monitor`, the focused one), then call `capture.shot` |
+| `capture` | `{ mode: "record", monitor, monitors }` | let the user select a region on one of `monitors` to record, then call `capture.record` |
 
 ## Methods
 
@@ -291,8 +291,8 @@ All but `select` take an optional `player` id.
 Seconds everywhere. With `app` (a class) the numbers are for that application only. `monthOffset` is the weekday (0 = Monday) of the 1st.
 `focus.setIdle {idle}` — the shell reports whether the user is idle (idle time is not counted).
 
-**capture** — `capture.start {mode: "region"|"full"|"edit"|"ocr"|"qr"|"record", monitor?}` (the focused monitor unless one is named; full: shoots at once; others emit a `capture` event),
-`capture.shot {x, y, w, h, viewWidth, action?}` (the selection in the overlay's coordinates and the overlay's width; `action`: `copy`, `edit`, `ocr`, `qr`),
+**capture** — `capture.start {mode: "region"|"full"|"edit"|"ocr"|"qr"|"record", monitor?}` (full: shoots the focused or named monitor at once; others emit a `capture` event offering every monitor, or only the named one),
+`capture.shot {monitor, x, y, w, h, viewWidth, action?}` (the selection in the coordinates of `monitor`'s overlay and that overlay's width; `action`: `copy`, `edit`, `ocr`, `qr`),
 `capture.record {x, y, w, h, monitor?, audio?}` (`audio`: `none`, `desktop`, `mic`), `capture.stop`, `capture.cancel`.
 
 **timers** — `timers.timerSet {ms}`, `timers.timerStart`, `timers.timerPause`, `timers.timerReset`,
