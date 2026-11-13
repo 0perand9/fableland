@@ -3,8 +3,8 @@ import qs.core
 import qs.widgets
 import "layout.js" as Layout
 
-// What can be set on a monitor besides its resolution: refresh rate, scale and
-// rotation. It only asks for changes — the page owns the layout being edited.
+// What can be set on a monitor besides its resolution: refresh rate, scale,
+// rotation and, where the monitor can show it, HDR. It only asks for changes — the page owns the layout being edited.
 Column {
     id: root
 
@@ -116,6 +116,31 @@ Column {
                 interactive: root.monitor !== null
                 onToggled: checked => root.edited(3, { transform: root.turn + (checked ? 4 : 0) })
             }
+        }
+    }
+
+    Section {
+        width: parent.width
+        visible: root.monitor?.hdr !== undefined
+        title: "HDR"
+        value: root.monitor?.hdr ? "on · 10-bit colour" : "off"
+        current: root.section === 4
+
+        Txt {
+            anchors.verticalCenter: hdrSwitch.verticalCenter
+            width: parent.width - hdrSwitch.width - Theme.px(14)
+            text: "For HDR games and videos"
+            size: 12
+            color: Theme.subtext
+        }
+
+        Toggle {
+            id: hdrSwitch
+
+            anchors.right: parent.right
+            checked: root.monitor?.hdr ?? false
+            interactive: root.monitor !== null
+            onToggled: checked => root.edited(4, { hdr: checked })
         }
     }
 }

@@ -2,10 +2,11 @@
 
 // The geometry of a monitor layout and the modes a monitor offers.
 //
-// A monitor is a plain object { name, width, height, refreshRate, x, y, scale,
-// transform }: `width`/`height` are the pixels of its mode and `x`/`y` its
-// corner in the compositor's layout, where it takes up those pixels turned by
-// `transform` and divided by `scale`.
+// A monitor is a plain object { name, label, width, height, refreshRate, x, y,
+// scale, transform, hdr }: `width`/`height` are the pixels of its mode and
+// `x`/`y` its corner in the compositor's layout, where it takes up those pixels
+// turned by `transform` and divided by `scale`. `label` is what people call it
+// (its model), and `hdr` is left out on a monitor that cannot show HDR.
 
 // Rectangles closer than this (in layout pixels) count as touching.
 const EPSILON = 0.5;
@@ -139,8 +140,9 @@ function settle(monitors, anchorName) {
 // What the daemon reports about its monitors, as an editable layout.
 function seed(live) {
     return normalise(live.map(m => ({
-        name: m.name, width: m.width, height: m.height, refreshRate: m.refreshRate,
-        x: m.x, y: m.y, scale: cleanScale(m.width, m.height, m.scale), transform: m.transform
+        name: m.name, label: m.model || m.name, width: m.width, height: m.height, refreshRate: m.refreshRate,
+        x: m.x, y: m.y, scale: cleanScale(m.width, m.height, m.scale), transform: m.transform,
+        hdr: m.hdrCapable ? m.hdr : undefined
     })));
 }
 
@@ -148,7 +150,7 @@ function seed(live) {
 function request(monitors) {
     return monitors.map(m => ({
         name: m.name, width: m.width, height: m.height, refreshRate: m.refreshRate,
-        x: Math.round(m.x), y: Math.round(m.y), scale: m.scale, transform: m.transform
+        x: Math.round(m.x), y: Math.round(m.y), scale: m.scale, transform: m.transform, hdr: m.hdr
     }));
 }
 
@@ -162,7 +164,7 @@ function same(a, b) {
         const o = b.find(other => other.name === m.name);
         return m.width === o.width && m.height === o.height && Math.abs(m.refreshRate - o.refreshRate) < 0.05
             && Math.round(m.x) === Math.round(o.x) && Math.round(m.y) === Math.round(o.y)
-            && Math.abs(m.scale - o.scale) < 0.001 && m.transform === o.transform;
+            && Math.abs(m.scale - o.scale) < 0.001 && m.transform === o.transform && m.hdr === o.hdr;
     });
 }
 

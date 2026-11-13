@@ -345,6 +345,8 @@ async fn refresh() -> Result<()> {
             "width": m["width"], "height": m["height"], "refreshRate": m["refreshRate"],
             "scale": m["scale"], "transform": m["transform"], "x": m["x"], "y": m["y"],
             "focused": m["focused"], "modes": m["availableModes"],
+            "hdrCapable": m["hardwareDetails"]["hdr"].as_bool().unwrap_or(false),
+            "hdr": m["colorManagementPreset"].as_str().is_some_and(|cm| cm.starts_with("hdr")),
         }));
     }
 
@@ -501,6 +503,7 @@ pub async fn apply_settings(startup: bool) -> Result<()> {
 async fn apply_monitors(layout: &Value, persist: bool) -> Result<()> {
     let connected = query("monitors").await?;
     let connected: Vec<&str> = connected.as_array().map(|a| a.iter().filter_map(|m| m["name"].as_str()).collect()).unwrap_or_default();
+    let mut rules = Vec::new();
     let mut applied = Vec::new();
     for m in layout.as_array().ok_or_else(|| anyhow!("monitors must be a list"))? {
         let name = m.str("name")?;
@@ -509,16 +512,27 @@ async fn apply_monitors(layout: &Value, persist: bool) -> Result<()> {
         }
         let mode = format!("{}x{}@{}", m.int("width")?, m.int("height")?, m.num("refreshRate")?);
         let position = format!("{}x{}", m.int("x")?, m.int("y")?);
-        let lua = format!(
-            "hl.monitor({{ output = {}, mode = {}, position = {}, scale = {}, transform = {} }})",
+        // Only monitors that can show HDR carry the field; HDR wants 10 bits per channel.
+        let colour = match m.get("hdr").and_then(Value::as_bool) {
+            Some(true) => ", cm = \"hdr\", bitdepth = 10",
+            Some(false) => ", cm = \"srgb\", bitdepth = 8",
+            None => "",
+        };
+        rules.push(format!(
+            "hl.monitor({{ output = {}, mode = {}, position = {}, scale = {}, transform = {}{colour} }})",
             lua_str(name),
             lua_str(&mode),
             lua_str(&position),
             m.num_or("scale", 1.0),
             m.num_or("transform", 0.0) as i64
-        );
-        eval(&lua).await?;
+        ));
         applied.push(name.to_string());
+    }
+    // All rules in one go: Hyprland applies what arrived before its next frame
+    // together, while one at a time a monitor would be moved onto the spot
+    // another has yet to leave, and it would warn of overlapping monitors.
+    if !rules.is_empty() {
+        eval(&rules.join(" ")).await?;
     }
     if persist {
         d().settings.set("monitors", layout.clone())?;

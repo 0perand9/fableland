@@ -44,8 +44,9 @@ Values shown are examples; `…` marks more of the same.
 ```json
 [{ "name": "DP-1", "description": "…", "make": "…", "model": "…", "width": 3840, "height": 2160,
    "refreshRate": 59.997, "x": 0, "y": 0, "scale": 1, "transform": 0, "focused": true,
-   "modes": ["3840x2160@60.00Hz", "…"] }]
+   "modes": ["3840x2160@60.00Hz", "…"], "hdrCapable": true, "hdr": false }]
 ```
+`hdr`: the monitor runs in HDR (Hyprland's `hdr` or `hdredid` colour preset).
 
 ### `audio`
 ```json
@@ -243,7 +244,7 @@ A key that `managed.json` fixes cannot be changed: `set` and `patch` fail, and `
 `hypr.reload`, `hypr.clients` → Hyprland's client list,
 `hypr.binds` → `[{ mods: ["SUPER", "SHIFT"], key: "Return", dispatcher: "exec_cmd", action: "kitty", mouse, repeat, locked, submap }]`
 (`action` is the bind's description, or what the Lua config says it does, or `""`),
-`hypr.applyMonitors {monitors: [{ name, width, height, refreshRate, x, y, scale, transform }]}` (applies and remembers the layout),
+`hypr.applyMonitors {monitors: [{ name, width, height, refreshRate, x, y, scale, transform, hdr? }]}` (applies and remembers the layout, all monitors at once; `hdr` true sets the `hdr` preset at 10 bits, false sRGB at 8, absent leaves the colour alone),
 `hypr.applySettings` (re-apply keybinds, keyboard layouts).
 
 **audio** — `kind` is `sink`, `source` or `stream`; `id` a number or `"default"`.

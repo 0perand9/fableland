@@ -26,8 +26,10 @@ PopupPage {
     readonly property string resolutionKey: selected ? selected.width + "x" + selected.height : ""
     readonly property var rates: resolutions.find(entry => entry.key === resolutionKey)?.rates ?? []
 
-    // The section the arrow keys act on: 0 resolution, 1 refresh rate, 2 scale, 3 rotation.
+    // The section the arrow keys act on: 0 resolution, 1 refresh rate, 2 scale,
+    // 3 rotation, 4 HDR (only on a monitor that can show it).
     property int section: 0
+    readonly property int sections: selected?.hdr !== undefined ? 5 : 4
 
     // The request on its way to the daemon; `abandoned` tells its reply that the popup has closed.
     property var request: null
@@ -88,13 +90,14 @@ PopupPage {
         case 1: tuning.setRate(tuning.rateAt + dx); break;
         case 2: tuning.stepScale(dx - dy); break;
         case 3: tuning.setTurn(tuning.turn + dx); break;
+        case 4: if (dx !== 0) edit({ hdr: dx > 0 }); break;
         }
     }
 
     function apply() {
         if (!dirty || request)
             return;
-        const ticket = { abandoned: false }, before = Layout.request(live);
+        const ticket = { abandoned: false }, before = Layout.request(base);
         request = ticket;
         failure = "";
         Daemon.call("hypr.applyMonitors", { monitors: Layout.request(draft) }, (result, error) => {
@@ -116,9 +119,10 @@ PopupPage {
     }
 
     implicitWidth: Theme.px(800)
-    implicitHeight: Theme.px(650)
+    implicitHeight: Theme.px(720)
 
     onLiveChanged: adopt()
+    onSectionsChanged: section = Math.min(section, sections - 1)
     Component.onCompleted: {
         adopt();
         if (names.indexOf(arg) >= 0)
@@ -132,8 +136,8 @@ PopupPage {
     Keys.onPressed: event => {
         const ctrl = (event.modifiers & Qt.ControlModifier) !== 0;
         switch (event.key) {
-        case Qt.Key_Tab: ctrl ? selectNext(1) : section = (section + 1) % 4; break;
-        case Qt.Key_Backtab: ctrl ? selectNext(-1) : section = (section + 3) % 4; break;
+        case Qt.Key_Tab: ctrl ? selectNext(1) : section = (section + 1) % sections; break;
+        case Qt.Key_Backtab: ctrl ? selectNext(-1) : section = (section + sections - 1) % sections; break;
         case Qt.Key_Left: nudge(-1, 0); break;
         case Qt.Key_Right: nudge(1, 0); break;
         case Qt.Key_Up: nudge(0, -1); break;
@@ -248,10 +252,11 @@ PopupPage {
         anchors.top: canvas.bottom
         anchors.topMargin: Theme.px(12)
         x: Theme.px(24)
-        width: visible ? Math.min(Theme.px(110) * page.names.length, Theme.px(380)) : 0
+        width: visible ? Math.min(Theme.px(150) * page.names.length, Theme.px(400)) : 0
         implicitHeight: Theme.px(38)
         visible: page.names.length > 1
-        model: page.names
+        // What people call their monitors, not the connectors they are plugged into.
+        model: page.names.map(name => page.live.find(m => m.name === name)?.model || name)
         current: page.names.indexOf(page.selectedName)
         onSelected: index => page.selectedName = page.names[index]
     }
@@ -264,14 +269,14 @@ PopupPage {
 
         Txt {
             width: parent.width
-            text: page.selectedLive ? (picker.visible ? "" : page.selectedName + " · ") + page.selectedLive.model : ""
+            text: page.selectedLive ? page.selectedLive.make + " " + page.selectedLive.model : ""
             size: 13
             bold: true
         }
 
         Txt {
             width: parent.width
-            text: page.selectedLive && page.selected ? page.selectedLive.make + " · at " + page.selected.x + ", " + page.selected.y : ""
+            text: page.selected ? page.selectedName + " · at " + page.selected.x + ", " + page.selected.y : ""
             size: 11
             color: Theme.subtext
         }

@@ -167,7 +167,7 @@ Item {
                 Txt {
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
-                    text: tile.key
+                    text: tile.monitor?.label ?? tile.key
                     size: 13
                     bold: true
                 }
@@ -177,7 +177,7 @@ Item {
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     visible: tile.height > Theme.px(48) && tile.width > Theme.px(124)
-                    text: tile.monitor ? tile.monitor.width + "×" + tile.monitor.height + " · " + Math.round(tile.monitor.refreshRate) + " Hz" : ""
+                    text: tile.monitor ? tile.key + " · " + tile.monitor.width + "×" + tile.monitor.height + " · " + Math.round(tile.monitor.refreshRate) + " Hz" : ""
                     size: 10
                     color: Theme.subtext
                 }
