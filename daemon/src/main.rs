@@ -47,6 +47,8 @@ pub struct Daemon {
     pub updates: modules::updates::Updates,
     /// Ends the daemon to start it afresh: `fable restart`, or a change of features.
     pub restart: tokio::sync::Notify,
+    /// Ends the daemon for good: the Hyprland session it belongs to is over.
+    pub quit: tokio::sync::Notify,
 }
 
 #[derive(Default)]
@@ -192,6 +194,7 @@ async fn daemon_main() -> Result<Exit> {
         _ = tokio::signal::ctrl_c() => Exit::Quit,
         _ = term.recv() => Exit::Quit,
         _ = d().restart.notified() => Exit::Restart,
+        _ = d().quit.notified() => Exit::Quit,
     };
     log!("shutting down");
     focus::flush();

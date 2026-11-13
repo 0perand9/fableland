@@ -226,6 +226,14 @@ pub async fn run() -> Result<()> {
         if let Err(e) = events().await {
             log!("Hyprland event socket: {e:#}");
         }
+        // Hyprland removes its lock file on exit. A daemon outliving its
+        // session would hold the socket the next session's daemon needs, and
+        // hear none of its keybinds.
+        if socket("hyprland.lock").is_some_and(|lock| !lock.exists()) {
+            log!("Hyprland session {} has ended", instance().unwrap_or_default());
+            d().quit.notify_one();
+            return Ok(());
+        }
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 }
