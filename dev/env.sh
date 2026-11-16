@@ -29,18 +29,21 @@ find_quickshell() {
 
 # Shaders (the backdrop patterns, plugins' effects) are GLSL, and Qt only loads
 # them compiled to .qsb. Compiles those that are missing or older than their
-# source or a .glsl beside it.
+# source or a .glsl beside it. A vertex shader is compiled for Qt Quick's
+# batching (-b), which a ShaderEffect needs.
 build_shaders() {
     local stale=() shader glsl
     while IFS= read -r -d '' shader; do
         for glsl in "$shader" "$(dirname "$shader")"/*.glsl; do
             [ -e "$glsl" ] && ! [ "$shader.qsb" -nt "$glsl" ] && { stale+=("$shader"); break; }
         done
-    done < <(find -L "$FABLE_SHELL" -name '*.frag' -print0)
+    done < <(find -L "$FABLE_SHELL" \( -name '*.frag' -o -name '*.vert' \) -print0)
     [ ${#stale[@]} -gt 0 ] || return 0
-    local qsb=(qsb)
+    local qsb=(qsb) batch
     command -v qsb >/dev/null || qsb=(nix shell nixpkgs#qt6.qtshadertools -c qsb)
     for shader in "${stale[@]}"; do
-        "${qsb[@]}" --glsl "100 es,120,150" -o "$shader.qsb" "$shader"
+        batch=()
+        [[ $shader == *.vert ]] && batch=(-b)
+        "${qsb[@]}" "${batch[@]}" --glsl "100 es,120,150" -o "$shader.qsb" "$shader"
     done
 }

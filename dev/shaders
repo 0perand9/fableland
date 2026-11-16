@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compile the shell's shaders (every *.frag under shell/, plugins' too) for Qt,
+# Compile the shell's shaders (every *.frag and *.vert under shell/, plugins' too) for Qt,
 # which only loads shaders as .qsb. dev/window and dev/shot do this on their own, and
 # so does the flake when it builds; run it by hand before starting the shell
 # from the source tree any other way. Needs Qt's qsb (qtshadertools), or Nix.

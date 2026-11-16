@@ -15,9 +15,9 @@ and make good examples:
 | [`movies`](https://github.com/0perand9/fable-movies) | a film and series catalogue | add a popup and a Settings page, offer a slot |
 | [`arr`](https://github.com/0perand9/fable-arr) | Sonarr and Radarr in movies | fill another plugin's slot, talk to a web API |
 | [`crypto`](https://github.com/0perand9/fable-crypto) | coin prices in the bar | run a task, publish a topic, add to the bar |
-| [`bubble`](https://github.com/0perand9/fable-bubble) | processes and apps as bubbles around a black hole | publish an on-demand topic only while wanted, read /proc, keep a live singleton |
+| [`bubble`](https://github.com/0perand9/fable-bubble) | processes and apps as bubbles around a black hole | publish an on-demand topic only while wanted, read /proc, keep a live singleton, take its page full screen in a window of its own |
 | [`calc`](https://github.com/0perand9/fable-calc) | a calculator and converter | keep state through the daemon, use the clipboard, split a big view into small files |
-| [`wallfx`](https://github.com/0perand9/fable-wallfx) | wallpaper transitions | fill the `overlay` slot with windows of its own, draw with a shader, answer a core event |
+| [`wallfx`](https://github.com/0perand9/fable-wallfx) | wallpaper transitions | fill the `overlay` slot with windows of its own, draw with a shader, answer a core event, keep a helper program working in the background |
 
 ## What a plugin is
 

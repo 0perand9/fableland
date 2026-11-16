@@ -194,9 +194,9 @@ A new pattern is one `.frag` file plus its name among the options in
 `popups/settings/AppearancePage.qml`. Keep it quiet: text sits on top of it.
 
 Qt only loads shaders compiled to `.qsb`, and those are not in git. Every
-`*.frag` under `shell/` is compiled, plugins' included: `dev/window` and
-`dev/shot` compile whatever is stale, the flake compiles them when it builds,
-and `dev/shaders` does it by hand.
+`*.frag` and `*.vert` under `shell/` is compiled, plugins' included:
+`dev/window` and `dev/shot` compile whatever is stale, the flake compiles them
+when it builds, and `dev/shaders` does it by hand.
 
 ## Trying it
 
