@@ -120,6 +120,7 @@ PopupPage {
 
     implicitWidth: Theme.px(800)
     implicitHeight: Theme.px(720)
+    closeOnEscape: !confirming
 
     onLiveChanged: adopt()
     onSectionsChanged: section = Math.min(section, sections - 1)
@@ -135,6 +136,15 @@ PopupPage {
 
     Keys.onPressed: event => {
         const ctrl = (event.modifiers & Qt.ControlModifier) !== 0;
+        // While KeepDialog asks, Return keeps, Escape goes back and nothing else edits.
+        if (confirming) {
+            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
+                confirming = false;
+            else if (event.key === Qt.Key_Escape)
+                goBack();
+            event.accepted = true;
+            return;
+        }
         switch (event.key) {
         case Qt.Key_Tab: ctrl ? selectNext(1) : section = (section + 1) % sections; break;
         case Qt.Key_Backtab: ctrl ? selectNext(-1) : section = (section + sections - 1) % sections; break;
@@ -142,7 +152,7 @@ PopupPage {
         case Qt.Key_Right: nudge(1, 0); break;
         case Qt.Key_Up: nudge(0, -1); break;
         case Qt.Key_Down: nudge(0, 1); break;
-        case Qt.Key_Return: case Qt.Key_Enter: confirming ? confirming = false : apply(); break;
+        case Qt.Key_Return: case Qt.Key_Enter: apply(); break;
         default: return;
         }
         event.accepted = true;
@@ -350,12 +360,16 @@ PopupPage {
         dirty: page.dirty
         busy: page.request !== null
         failure: page.failure
-        confirming: page.confirming
-        patience: page.patience
-        graceSeconds: page.graceSeconds
         several: page.names.length > 1
         onApplyClicked: page.apply()
         onRevertClicked: page.draft = page.base
+    }
+
+    KeepDialog {
+        anchors.fill: parent
+        open: page.confirming
+        patience: page.patience
+        graceSeconds: page.graceSeconds
         onKeepClicked: page.confirming = false
         onGoBackClicked: page.goBack()
     }
