@@ -8,3 +8,6 @@ __pycache__/
 # Plugins linked or copied in by plugins/assemble: they live in their own repositories.
 /plugins/*
 !/plugins/assemble
+# ...and their QML, which it links into the shell. Index.qml stays: shell.qml imports it.
+/shell/plugins/*
+!/shell/plugins/Index.qml
