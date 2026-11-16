@@ -440,10 +440,8 @@ async fn generate_theme(image: &str) -> Result<()> {
     }
 
     // Terminals reload their colours on SIGUSR1; anything else goes through the user's hook.
-    for name in ["kitty", ".kitty-wrapped"] {
-        for pid in util::pids_of(name) {
-            util::signal(pid, libc::SIGUSR1);
-        }
+    for pid in util::pids_of("kitty") {
+        util::signal(pid, libc::SIGUSR1);
     }
     let hook = s.str("wallpaper.themeHook");
     if !hook.is_empty() {

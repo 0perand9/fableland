@@ -178,14 +178,18 @@ pub fn signal(pid: u32, sig: i32) {
     }
 }
 
-/// PIDs of running processes whose executable name is exactly `name`.
+/// PIDs of running processes whose executable name is `name`, also when Nix
+/// runs it through a wrapper: the kernel then knows it as `.name-wrapped`, cut
+/// to 15 characters (`.mpvpaper-wrapp`).
 pub fn pids_of(name: &str) -> Vec<u32> {
+    let wrapped: String = format!(".{name}-wrapped").chars().take(15).collect();
     let mut found = Vec::new();
     let Ok(entries) = std::fs::read_dir("/proc") else { return found };
     for e in entries.flatten() {
         let Some(pid) = e.file_name().to_str().and_then(|s| s.parse::<u32>().ok()) else { continue };
         if let Ok(comm) = std::fs::read_to_string(e.path().join("comm")) {
-            if comm.trim() == name {
+            let comm = comm.trim();
+            if comm == name || comm == wrapped {
                 found.push(pid);
             }
         }
