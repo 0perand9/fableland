@@ -77,6 +77,9 @@ these live in their own repositories:
 | [**movies**](https://github.com/0perand9/fable-movies) | browse a film/series catalogue and open a title on the site of your choice |
 | [**arr**](https://github.com/0perand9/fable-arr) | Sonarr and Radarr in movies: badges on what is in your library, and a request button |
 | [**crypto**](https://github.com/0perand9/fable-crypto) | coin prices in the bar |
+| [**wallfx**](https://github.com/0perand9/fable-wallfx) | a new wallpaper eats through the old one in pixel colonies, by Diego Malagrida |
+| [**calc**](https://github.com/0perand9/fable-calc) | a calculator with a scientific mode, history and a unit and currency converter, by lukpednoi |
+| [**bubble**](https://github.com/0perand9/fable-bubble) | your machine as bubbles drifting around a black hole: processes, apps, CPU, memory, by lukpednoi |
 
 They and others can come from anywhere: a folder, a flake input, or a GitHub repository
 pinned by its hash. They are trusted like the rest of your configuration, so
@@ -244,5 +247,15 @@ nothing appears on your desktop at all.
 * [ilyamiro/imperative-dots](https://github.com/ilyamiro/imperative-dots), the
   Quickshell setup this one grew out of. The sounds in `assets/sounds/` come
   from it as well.
+* The wallpaper transition of the [wallfx](https://github.com/0perand9/fable-wallfx)
+  plugin is Diego Malagrida's, from
+  [diegoMalagrida/pocket-dots](https://github.com/diegoMalagrida/pocket-dots)
+  (GPL-3.0, which the plugin keeps).
+* The [calc](https://github.com/0perand9/fable-calc) and
+  [bubble](https://github.com/0perand9/fable-bubble) plugins are lukpednoi's
+  calculator and Bubble monitor, from
+  [lukpednoi/Anserin](https://github.com/lukpednoi/Anserin), itself a fork of
+  ilyamiro's [Serpantinum](https://github.com/ilyamiro/serpantinum) (AGPL-3.0,
+  which both plugins keep).
 * [Quickshell](https://quickshell.org), [Hyprland](https://hyprland.org) and
   [matugen](https://github.com/InioX/matugen).

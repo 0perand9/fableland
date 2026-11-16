@@ -59,11 +59,11 @@ rustPlatform.buildRustPackage {
   '';
 
   # The daemon looks for the shell in ../share/fableland next to its binary.
-  # The backdrop patterns are GLSL; Qt loads them compiled.
+  # Shaders (the backdrop patterns, plugins' effects) are GLSL; Qt loads them compiled.
   postInstall = ''
     mkdir -p $out/share/fableland
     cp -r shell assets $out/share/fableland/
-    for shader in $out/share/fableland/shell/widgets/backdrop/*.frag; do
+    find -L $out/share/fableland/shell -name '*.frag' | while read -r shader; do
       QT_QPA_PLATFORM=offscreen ${qt6.qtshadertools}/bin/qsb --glsl "100 es,120,150" -o $shader.qsb $shader
     done
   '';

@@ -7,7 +7,7 @@ modules. Nothing keeps a plugin in a box, so install the ones you trust:
 read a plugin before you add it, and pin it (see [Installing](#installing)) so
 that the code you read is the code you run.
 
-None come with Fableland itself. These three live in their own repositories
+None come with Fableland itself. These live in their own repositories
 and make good examples:
 
 | plugin | what it does | shows how to |
@@ -15,6 +15,9 @@ and make good examples:
 | [`movies`](https://github.com/0perand9/fable-movies) | a film and series catalogue | add a popup and a Settings page, offer a slot |
 | [`arr`](https://github.com/0perand9/fable-arr) | Sonarr and Radarr in movies | fill another plugin's slot, talk to a web API |
 | [`crypto`](https://github.com/0perand9/fable-crypto) | coin prices in the bar | run a task, publish a topic, add to the bar |
+| [`bubble`](https://github.com/0perand9/fable-bubble) | processes and apps as bubbles around a black hole | publish an on-demand topic only while wanted, read /proc, keep a live singleton |
+| [`calc`](https://github.com/0perand9/fable-calc) | a calculator and converter | keep state through the daemon, use the clipboard, split a big view into small files |
+| [`wallfx`](https://github.com/0perand9/fable-wallfx) | wallpaper transitions | fill the `overlay` slot with windows of its own, draw with a shader, answer a core event |
 
 ## What a plugin is
 

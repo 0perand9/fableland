@@ -173,6 +173,7 @@ puts there whatever plugins name for that slot, each given `context`.
 | slot | where | context |
 | --- | --- | --- |
 | `bar` | the bar, left of the tray (plugin.json names it `shell.bar`) | `{ screen }` |
+| `overlay` | nowhere: the top of the shell, for a plugin that brings its own windows (a `Scope`, usually) | none |
 
 Plugins offer slots of their own (fable-movies has two, for buttons on a
 title's page and badges on its poster); their READMEs list them.
@@ -192,9 +193,10 @@ and holds the helpers they share (`here()`, `nearness()`, `stroke()`, `paint()`)
 A new pattern is one `.frag` file plus its name among the options in
 `popups/settings/AppearancePage.qml`. Keep it quiet: text sits on top of it.
 
-Qt only loads shaders compiled to `.qsb`, and those are not in git. `dev/window`
-and `dev/shot` compile whatever is stale, the flake compiles them when it
-builds, and `dev/shaders` does it by hand.
+Qt only loads shaders compiled to `.qsb`, and those are not in git. Every
+`*.frag` under `shell/` is compiled, plugins' included: `dev/window` and
+`dev/shot` compile whatever is stale, the flake compiles them when it builds,
+and `dev/shaders` does it by hand.
 
 ## Trying it
 

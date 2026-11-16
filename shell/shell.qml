@@ -52,4 +52,16 @@ ShellRoot {
 
     // Tells the daemon when nobody has touched the machine for a while.
     Idle {}
+
+    // Plugins that bring windows of their own (the `overlay` slot).
+    Variants {
+        model: Plugins.slot("overlay")
+
+        LazyLoader {
+            required property var modelData
+
+            active: true
+            source: modelData.url
+        }
+    }
 }

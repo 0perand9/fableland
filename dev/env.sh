@@ -27,13 +27,16 @@ find_quickshell() {
     find_program quickshell "$ROOT#fableland.quickshell"
 }
 
-# The backdrop patterns are GLSL, and Qt only loads shaders compiled to .qsb.
-# Compiles those that are missing or older than their sources.
+# Shaders (the backdrop patterns, plugins' effects) are GLSL, and Qt only loads
+# them compiled to .qsb. Compiles those that are missing or older than their
+# source or a .glsl beside it.
 build_shaders() {
-    local dir="$FABLE_SHELL/widgets/backdrop" stale=() shader
-    for shader in "$dir"/*.frag; do
-        [ "$shader.qsb" -nt "$shader" ] && [ "$shader.qsb" -nt "$dir/common.glsl" ] || stale+=("$shader")
-    done
+    local stale=() shader glsl
+    while IFS= read -r -d '' shader; do
+        for glsl in "$shader" "$(dirname "$shader")"/*.glsl; do
+            [ -e "$glsl" ] && ! [ "$shader.qsb" -nt "$glsl" ] && { stale+=("$shader"); break; }
+        done
+    done < <(find -L "$FABLE_SHELL" -name '*.frag' -print0)
     [ ${#stale[@]} -gt 0 ] || return 0
     local qsb=(qsb)
     command -v qsb >/dev/null || qsb=(nix shell nixpkgs#qt6.qtshadertools -c qsb)

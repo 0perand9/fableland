@@ -3,6 +3,9 @@
 //! Topics: `wallpaper` (library + current), `theme` (palette), `wallsearch`
 //! (online search results). Thumbnails are made in-process; `awww`/`swww` shows
 //! still images, `mpvpaper` shows videos, `matugen` turns a wallpaper into a palette.
+//!
+//! The shell may draw the change between two stills itself (a plugin's
+//! transition): see [`handed_over`].
 
 use crate::util::Params;
 use crate::{d, features, log, util};
@@ -29,6 +32,9 @@ pub struct Wallpaper {
     /// Bumped to cancel a running online search.
     search_generation: AtomicU64,
     search: Mutex<Value>,
+    /// The change the shell is drawing: its id, and how to tell `show` it is covered.
+    handoff: Mutex<Option<(u64, tokio::sync::oneshot::Sender<()>)>>,
+    handoff_id: AtomicU64,
 }
 
 fn ext_of(path: &Path) -> String {
@@ -289,7 +295,9 @@ async fn show(path: &Path, outputs: &[String], animate: bool) -> Result<()> {
     if !ensure_image_daemon(tool).await {
         bail!("could not start {tool}-daemon");
     }
+    let handoff = if animate && !had_video { handed_over(path, outputs).await } else { None };
     let transition = match d().settings.str("wallpaper.transition").as_str() {
+        _ if handoff.is_some() => "none".to_string(),
         _ if !animate => "none".to_string(),
         "" | "random" => TRANSITIONS[(util::now_ms() % TRANSITIONS.len() as u64) as usize].to_string(),
         chosen => chosen.to_string(),
@@ -300,7 +308,11 @@ async fn show(path: &Path, outputs: &[String], animate: bool) -> Result<()> {
         args.extend(["-o", &joined]);
     }
     args.extend([path_str.as_str(), "--transition-type", &transition, "--transition-pos", "0.5,0.5", "--transition-fps", "144", "--transition-duration", "0.4"]);
-    util::run(tool, &args).await?;
+    let shown = util::run(tool, &args).await;
+    if let Some(id) = handoff {
+        d().hub.emit("wallpaper.swapped", &json!({ "id": id, "ok": shown.is_ok() }));
+    }
+    shown?;
     if had_video {
         // The still is now in place underneath; removing the video reveals it.
         for pid in util::pids_of("mpvpaper") {
@@ -308,6 +320,37 @@ async fn show(path: &Path, outputs: &[String], animate: bool) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// How long the shell has to cover the screen before the change goes ahead without it.
+const HANDOFF_WAIT: Duration = Duration::from_millis(2500);
+
+/// Lets the shell draw the change from the current still to `path`, if it has
+/// a transition loaded (it then wants the `wallpaper.transition` topic).
+///
+/// The daemon emits `wallpaper.transition {id, from, to, outputs}`; the shell
+/// loads both images, covers the screen with a picture of the old one and
+/// calls `wallpaper.covered {id}`. Only then does the wallpaper switch,
+/// instantly and unseen, and `wallpaper.swapped {id, ok}` tells the shell it
+/// may uncover once its animation has ended on the new one. Returns the id
+/// when the shell covered in time; otherwise the change is an ordinary one.
+async fn handed_over(path: &Path, outputs: &[String]) -> Option<u64> {
+    if !d().hub.is_wanted("wallpaper.transition") || d().settings.str("wallpaper.transition") == "none" || is_video(path) {
+        return None;
+    }
+    let from = d().wallpaper.current.lock().unwrap().clone();
+    let from = from["image"].as_str().filter(|_| from["video"] != true).filter(|f| Path::new(f).is_file() && Path::new(f) != path)?.to_string();
+    let w = &d().wallpaper;
+    let id = w.handoff_id.fetch_add(1, Ordering::SeqCst) + 1;
+    let (covered, wait) = tokio::sync::oneshot::channel();
+    *w.handoff.lock().unwrap() = Some((id, covered));
+    d().hub.emit("wallpaper.transition", &json!({ "id": id, "from": from, "to": path.to_string_lossy(), "outputs": outputs }));
+    let in_time = matches!(tokio::time::timeout(HANDOFF_WAIT, wait).await, Ok(Ok(())));
+    if !in_time {
+        log!("the shell's wallpaper transition did not cover the screen in time");
+        d().hub.emit("wallpaper.swapped", &json!({ "id": id, "ok": false }));
+    }
+    in_time.then_some(id)
 }
 
 async fn apply(path: &Path, outputs: Vec<String>) -> Result<()> {
@@ -613,6 +656,13 @@ pub async fn call(name: &str, p: &Value) -> Result<Value> {
             apply(Path::new(items[next]["path"].as_str().unwrap_or("")), Vec::new()).await?;
         }
         "rescan" => w.rescan.notify_one(),
+        "covered" => {
+            let id = p["id"].as_u64().unwrap_or(0);
+            let mut handoff = w.handoff.lock().unwrap();
+            if handoff.as_ref().is_some_and(|(waiting, _)| *waiting == id) {
+                let _ = handoff.take().unwrap().1.send(());
+            }
+        }
         "search" => {
             let query = p.str("query")?.trim().to_string();
             if query.is_empty() {
