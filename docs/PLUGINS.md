@@ -63,6 +63,7 @@ and its popup (`fable toggle hello`). Names the daemon uses itself are taken.
 | `settings` | the defaults of its settings. They live under its name and show up in `fable get settings`; a Nix configuration can fix them like any other |
 | `readOnly` | methods the development sandbox may call: those that change nothing outside the daemon |
 | `shell` | files in `shell/`: a popup, something in the bar, a Settings page, and what goes in [slots](SHELL.md#plugins) |
+| `choices` | choices it adds to settings that Settings shows as a list of choices, by path: `{ "wallpaper.transition": [{ "value": "wallfx", "label": "Contagion" }] }`. Every such row shows them while the plugin is on; the setting then holds the plugin's `value`, which it acts on itself |
 
 ### The code
 

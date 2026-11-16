@@ -228,7 +228,7 @@ Today's `focus.stats` (below), refreshed every 3 s.
 | `notif.closed` | `{ id }` | hide its pop-up |
 | `capture` | `{ mode: "image", action, monitor, images: { "<monitor>": path }, stamp }` | frozen frames of the monitors are at `images`: let the user select a region on one of them (starting on `monitor`, the focused one), then call `capture.shot` |
 | `capture` | `{ mode: "record", monitor, monitors }` | let the user select a region on one of `monitors` to record, then call `capture.record` |
-| `wallpaper.transition` | `{ id, from, to, outputs }` | draw the change from the still `from` to `to` (on `outputs`, or all): cover the screen with `from`, call `wallpaper.covered {id}`, then animate. Sent only while the shell wants the topic `wallpaper.transition` (it has a transition to draw), the `wallpaper.transition` setting is not `none`, and both are stills. Without `covered` within 2.5 s the change goes ahead as usual |
+| `wallpaper.transition` | `{ id, from, to, outputs }` | draw the change from the still `from` to `to` (on `outputs`, or all): cover the screen with `from`, call `wallpaper.covered {id}`, then animate. Sent only when the `wallpaper.transition` setting is a choice a plugin added (plugin.json `choices`), the shell wants the topic `wallpaper.transition` (it has that transition loaded), and both are stills. Without `covered` within 2.5 s the change goes ahead as usual |
 | `wallpaper.swapped` | `{ id, ok }` | the wallpaper underneath now shows `to` (`ok`), or the change went ahead without the shell (`ok: false`): uncover once the animation has ended |
 
 ## Methods
@@ -329,7 +329,7 @@ configuration decides settings (the Home Manager module writes it). Both files a
 | `osd`, `sounds` | `true`, `true` | |
 | `wallpaper.dir` | `~/Pictures/Wallpapers` | |
 | `wallpaper.scheme`, `wallpaper.mode` | `scheme-vibrant`, `dark` | matugen scheme and `dark`/`light` |
-| `wallpaper.transition` | `random` | awww/swww transition; `none` also stops a plugin from drawing one (`wallpaper.transition` event) |
+| `wallpaper.transition` | `random` | an awww/swww transition, or one a plugin added (drawn by the shell: the `wallpaper.transition` event) |
 | `wallpaper.themeHook` | — | command run after a new palette is generated |
 | `weather.provider` | `open-meteo` | or `openweathermap` (needs `weather.owmKey`) |
 | `weather.unit` | `metric` | or `imperial` |

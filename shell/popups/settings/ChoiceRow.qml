@@ -9,11 +9,13 @@ SettingRow {
 
     // [{ value, label }], or plain strings that are value and label at once.
     property var options: []
-    property bool segmented: options.length <= 3
+    // With what plugins add to this setting (their plugin.json `choices`).
+    readonly property var choices: options.concat(Plugins.choices(path))
+    property bool segmented: choices.length <= 3
     // Width of one segment (design units); widen it for long labels.
     property real segmentWidth: 76
     readonly property var current: Daemon.setting(path, "")
-    readonly property int currentIndex: options.findIndex(option => valueOf(option) === current)
+    readonly property int currentIndex: choices.findIndex(option => valueOf(option) === current)
 
     function valueOf(option) {
         return typeof option === "string" ? option : option.value;
@@ -25,13 +27,13 @@ SettingRow {
 
     function choose(index) {
         if (index !== currentIndex)
-            Daemon.setSetting(path, valueOf(options[index]));
+            Daemon.setSetting(path, valueOf(choices[index]));
     }
 
     stacked: !segmented
-    onNudged: by => choose(Math.max(0, Math.min(options.length - 1, currentIndex + by)))
-    onActivated: choose((currentIndex + 1) % options.length)
-    keywords: options.map(option => labelOf(option)).join(" ")
+    onNudged: by => choose(Math.max(0, Math.min(choices.length - 1, currentIndex + by)))
+    onActivated: choose((currentIndex + 1) % choices.length)
+    keywords: choices.map(option => labelOf(option)).join(" ")
 
     Loader {
         sourceComponent: root.segmented ? segments : chips
@@ -40,10 +42,10 @@ SettingRow {
             id: segments
 
             Tabs {
-                implicitWidth: Theme.px(root.segmentWidth) * root.options.length
+                implicitWidth: Theme.px(root.segmentWidth) * root.choices.length
                 implicitHeight: Theme.px(32)
                 size: 12
-                model: root.options.map(option => root.labelOf(option))
+                model: root.choices.map(option => root.labelOf(option))
                 current: root.currentIndex
                 onSelected: index => root.choose(index)
             }
@@ -53,7 +55,7 @@ SettingRow {
             id: chips
 
             Chips {
-                labels: root.options.map(option => root.labelOf(option))
+                labels: root.choices.map(option => root.labelOf(option))
                 current: root.currentIndex
                 onPicked: index => root.choose(index)
             }

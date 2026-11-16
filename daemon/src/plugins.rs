@@ -40,6 +40,10 @@ pub struct Manifest {
     /// What the plugin adds to the shell: files in its shell/ folder.
     #[serde(default)]
     pub shell: ShellParts,
+    /// Choices it adds to settings of others that are a list of choices, by
+    /// setting path: `{ "wallpaper.transition": [{ "value": "wallfx", "label": "Contagion" }] }`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub choices: BTreeMap<String, Vec<Value>>,
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -111,6 +115,15 @@ pub fn all() -> &'static [Loaded] {
 
 pub fn find(name: &str) -> Option<&'static Loaded> {
     all().iter().find(|p| p.manifest.name == name)
+}
+
+/// The plugin, switched on, that added `value` to the choices of the setting at `path`.
+pub fn choice_of(path: &str, value: &str) -> Option<&'static str> {
+    all()
+        .iter()
+        .filter(|p| crate::features::on(&p.manifest.name))
+        .find(|p| p.manifest.choices.get(path).is_some_and(|choices| choices.iter().any(|c| c["value"].as_str() == Some(value))))
+        .map(|p| p.manifest.name.as_str())
 }
 
 /// The defaults of every plugin's settings, by plugin name.

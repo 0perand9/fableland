@@ -300,7 +300,9 @@ async fn show(path: &Path, outputs: &[String], animate: bool) -> Result<()> {
         _ if handoff.is_some() => "none".to_string(),
         _ if !animate => "none".to_string(),
         "" | "random" => TRANSITIONS[(util::now_ms() % TRANSITIONS.len() as u64) as usize].to_string(),
-        chosen => chosen.to_string(),
+        chosen if TRANSITIONS.contains(&chosen) || chosen == "none" => chosen.to_string(),
+        // A plugin's transition that could not be drawn (a video, no answer in time).
+        _ => "fade".to_string(),
     };
     let joined = outputs.join(",");
     let mut args = vec!["img"];
@@ -325,8 +327,9 @@ async fn show(path: &Path, outputs: &[String], animate: bool) -> Result<()> {
 /// How long the shell has to cover the screen before the change goes ahead without it.
 const HANDOFF_WAIT: Duration = Duration::from_millis(2500);
 
-/// Lets the shell draw the change from the current still to `path`, if it has
-/// a transition loaded (it then wants the `wallpaper.transition` topic).
+/// Lets the shell draw the change from the current still to `path`, when the
+/// chosen transition is one a plugin added (its `choices` in plugin.json) and
+/// the shell has it loaded (it then wants the `wallpaper.transition` topic).
 ///
 /// The daemon emits `wallpaper.transition {id, from, to, outputs}`; the shell
 /// loads both images, covers the screen with a picture of the old one and
@@ -335,7 +338,8 @@ const HANDOFF_WAIT: Duration = Duration::from_millis(2500);
 /// may uncover once its animation has ended on the new one. Returns the id
 /// when the shell covered in time; otherwise the change is an ordinary one.
 async fn handed_over(path: &Path, outputs: &[String]) -> Option<u64> {
-    if !d().hub.is_wanted("wallpaper.transition") || d().settings.str("wallpaper.transition") == "none" || is_video(path) {
+    let chosen = d().settings.str("wallpaper.transition");
+    if crate::plugins::choice_of("wallpaper.transition", &chosen).is_none() || !d().hub.is_wanted("wallpaper.transition") || is_video(path) {
         return None;
     }
     let from = d().wallpaper.current.lock().unwrap().clone();

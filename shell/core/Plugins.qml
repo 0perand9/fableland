@@ -9,12 +9,18 @@ import Quickshell
 //   bar        drawn in the bar's "bar" slot
 //   settings   a page of its own in Settings
 //   slots      places other parts of the shell leave open (widgets/Slot.qml)
+//   choices    more choices for a setting's ChoiceRow, by setting path
 Singleton {
     id: root
 
     readonly property var list: Daemon.plugins.filter(plugin => Daemon.has(plugin.name))
     readonly property var popups: list.filter(plugin => plugin.shell.popup).map(plugin => plugin.name)
     readonly property var settingsPages: list.filter(plugin => plugin.shell.settings).map(plugin => ({ key: plugin.name, title: plugin.title || plugin.name, short: plugin.short, icon: plugin.icon, file: url(plugin.name, plugin.shell.settings) }))
+
+    // The choices plugins add to a setting: [{ value, label }].
+    function choices(path) {
+        return list.reduce((all, plugin) => plugin.choices && plugin.choices[path] ? all.concat(plugin.choices[path]) : all, []);
+    }
 
     function find(name) {
         return list.find(plugin => plugin.name === name) ?? null;
